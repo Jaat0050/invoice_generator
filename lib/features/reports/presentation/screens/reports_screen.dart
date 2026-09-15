@@ -9,6 +9,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/kpi_card.dart';
+import '../../../../core/widgets/responsive_wrapper.dart';
 import '../../../../core/widgets/shimmer_loader.dart';
 import '../../data/models/report_filter.dart';
 import '../../data/repositories/reports_repository.dart';
@@ -58,7 +59,9 @@ class ReportsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
+      body: ResponsiveWrapper(
+        maxWidth: 1000,
+        child: ListView(
         padding: AppDimensions.pagePadding,
         children: [
           // Filter Chips
@@ -205,8 +208,9 @@ class ReportsScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDateChip(
     BuildContext context,

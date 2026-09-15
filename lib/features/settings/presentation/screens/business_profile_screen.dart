@@ -243,14 +243,14 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
                 _buildSectionHeader('General Information'),
                 AppTextField(
                   label: 'Trade / Brand Name *',
-                  hint: 'e.g. Apex Solutions',
+                  hint: 'e.g. Acme Enterprises',
                   controller: _nameController,
                   validator: (v) => Validators.required(v, 'Business Name'),
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
                   label: 'Legal Registered Name',
-                  hint: 'e.g. Apex Solutions Private Limited',
+                  hint: 'e.g. Acme Enterprises Private Limited',
                   controller: _legalNameController,
                 ),
                 const SizedBox(height: 12),

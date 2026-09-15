@@ -8,6 +8,7 @@ import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/kpi_card.dart';
+import '../../../../core/widgets/responsive_wrapper.dart';
 import '../../../../core/widgets/shimmer_loader.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
@@ -72,9 +73,11 @@ class DashboardScreen extends ConsumerWidget {
             ref.invalidate(dashboardStatsProvider);
             ref.invalidate(activeBusinessProvider);
           },
-          child: ListView(
-            padding: AppDimensions.pagePadding,
-            children: [
+          child: ResponsiveWrapper(
+            maxWidth: 1080,
+            child: ListView(
+              padding: AppDimensions.pagePadding,
+              children: [
               // Hero Total Sales Card
               _buildHeroSalesCard(stats),
               const SizedBox(height: AppDimensions.md),
@@ -147,6 +150,7 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
         loading: () => ListView(
           padding: AppDimensions.pagePadding,
           children: const [

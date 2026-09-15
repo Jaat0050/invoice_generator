@@ -22,8 +22,7 @@ class TemplateConfigNotifier extends Notifier<TemplateConfigModel> {
   void setTemplate(String id) => state = state.copyWith(templateId: id);
 }
 
-final templateConfigProvider =
-    NotifierProvider<TemplateConfigNotifier, TemplateConfigModel>(TemplateConfigNotifier.new);
+final templateConfigProvider = NotifierProvider<TemplateConfigNotifier, TemplateConfigModel>(TemplateConfigNotifier.new);
 
 class InvoicePreviewScreen extends ConsumerWidget {
   final int invoiceId;
@@ -39,17 +38,14 @@ class InvoicePreviewScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: const Text('Invoice Preview & PDF'),
-        backgroundColor: AppColors.darkSurface,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        title: const Text('Invoice Preview & PDF', style: TextStyle(color: Colors.white)),
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(icon: const Icon(Icons.tune_rounded, color: Colors.white), tooltip: 'Customize Template', onPressed: () => _showTemplateCustomizerModal(context, ref)),
           IconButton(
-            icon: const Icon(Icons.tune_rounded),
-            tooltip: 'Customize Template',
-            onPressed: () => _showTemplateCustomizerModal(context, ref),
-          ),
-          IconButton(
-            icon: const Icon(Icons.share_rounded),
+            icon: const Icon(Icons.share_rounded, color: Colors.white),
             tooltip: 'Share via WhatsApp / Email',
             onPressed: () {
               if (invoiceAsync.hasValue && businessAsync.hasValue) {
@@ -63,20 +59,7 @@ class InvoicePreviewScreen extends ConsumerWidget {
         data: (invoice) {
           return businessAsync.when(
             data: (business) {
-              return PdfPreview(
-                build: (format) => PdfInvoiceGenerator.generatePdf(
-                  invoice: invoice,
-                  business: business,
-                  config: templateConfig,
-                ),
-                canChangePageFormat: false,
-                canChangeOrientation: false,
-                canDebug: false,
-                allowPrinting: true,
-                allowSharing: true,
-                previewPageMargin: const EdgeInsets.all(12),
-                pdfFileName: '${invoice.invoiceNumber}.pdf',
-              );
+              return PdfPreview(build: (format) => PdfInvoiceGenerator.generatePdf(invoice: invoice, business: business, config: templateConfig), canChangePageFormat: false, canChangeOrientation: false, canDebug: false, allowPrinting: true, allowSharing: true, previewPageMargin: const EdgeInsets.all(12), pdfFileName: '${invoice.invoiceNumber}.pdf');
             },
             loading: () => const Center(child: CircularProgressIndicator(color: Colors.white)),
             error: (err, _) => Center(child: Text('Error loading business: $err', style: const TextStyle(color: Colors.white))),
@@ -100,9 +83,7 @@ class InvoicePreviewScreen extends ConsumerWidget {
 
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return Consumer(
           builder: (context, ref, _) {
@@ -117,50 +98,19 @@ class InvoicePreviewScreen extends ConsumerWidget {
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: colors.map((colorHex) {
-                      final isSelected = config.primaryColorHex == colorHex;
-                      return GestureDetector(
-                        onTap: () => ref.read(templateConfigProvider.notifier).setColor(colorHex),
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: Color(colorHex),
-                            shape: BoxShape.circle,
-                            border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
-                          ),
-                          child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
-                        ),
-                      );
-                    }).toList(),
+                    children:
+                        colors.map((colorHex) {
+                          final isSelected = config.primaryColorHex == colorHex;
+                          return GestureDetector(onTap: () => ref.read(templateConfigProvider.notifier).setColor(colorHex), child: Container(width: 36, height: 36, decoration: BoxDecoration(color: Color(colorHex), shape: BoxShape.circle, border: isSelected ? Border.all(color: Colors.black, width: 3) : null), child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) : null));
+                        }).toList(),
                   ),
                   const Divider(height: 28),
                   Text('Display Toggles', style: AppTypography.labelMedium),
-                  SwitchListTile(
-                    title: const Text('Show Bank & Account Details'),
-                    value: config.showBankDetails,
-                    onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showBankDetails: val)),
-                  ),
-                  SwitchListTile(
-                    title: const Text('Show Instant UPI Payment QR Code'),
-                    value: config.showUpiQr,
-                    onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showUpiQr: val)),
-                  ),
-                  SwitchListTile(
-                    title: const Text('Show HSN/SAC Column'),
-                    value: config.showHsnSac,
-                    onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showHsnSac: val)),
-                  ),
-                  SwitchListTile(
-                    title: const Text('Show Payment Due Highlight Box'),
-                    value: config.showPaymentDueAlert,
-                    onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showPaymentDueAlert: val)),
-                  ),
-                  SwitchListTile(
-                    title: const Text('Show Authorized Signature Area'),
-                    value: config.showSignature,
-                    onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showSignature: val)),
-                  ),
+                  SwitchListTile(title: const Text('Show Bank & Account Details'), value: config.showBankDetails, onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showBankDetails: val))),
+                  SwitchListTile(title: const Text('Show Instant UPI Payment QR Code'), value: config.showUpiQr, onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showUpiQr: val))),
+                  SwitchListTile(title: const Text('Show HSN/SAC Column'), value: config.showHsnSac, onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showHsnSac: val))),
+                  SwitchListTile(title: const Text('Show Payment Due Highlight Box'), value: config.showPaymentDueAlert, onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showPaymentDueAlert: val))),
+                  SwitchListTile(title: const Text('Show Authorized Signature Area'), value: config.showSignature, onChanged: (val) => ref.read(templateConfigProvider.notifier).updateConfig(config.copyWith(showSignature: val))),
                 ],
               ),
             );
@@ -173,9 +123,7 @@ class InvoicePreviewScreen extends ConsumerWidget {
   void _showShareOptionsModal(BuildContext context, InvoiceModel invoice, dynamic business) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return Padding(
           padding: const EdgeInsets.all(20.0),
@@ -186,14 +134,7 @@ class InvoicePreviewScreen extends ConsumerWidget {
               Text('Share Invoice ${invoice.invoiceNumber}', style: AppTypography.headingMedium),
               const SizedBox(height: 16),
               ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFDCFCE7),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF16A34A)),
-                ),
+                leading: Container(padding: const EdgeInsets.all(10), decoration: const BoxDecoration(color: Color(0xFFDCFCE7), shape: BoxShape.circle), child: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF16A34A))),
                 title: const Text('Share via WhatsApp'),
                 subtitle: const Text('Send pre-filled payment message & reminder'),
                 onTap: () async {
@@ -213,25 +154,13 @@ Thank you for your business!
                   if (await canLaunchUrl(whatsappUrl)) {
                     await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
                   } else {
-                    SharePlus.instance.share(
-                      ShareParams(
-                        text: msg,
-                        subject: 'Invoice ${invoice.invoiceNumber} from ${business.name}',
-                      ),
-                    );
+                    SharePlus.instance.share(ShareParams(text: msg, subject: 'Invoice ${invoice.invoiceNumber} from ${business.name}'));
                   }
                 },
               ),
               const Divider(),
               ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.email_outlined, color: AppColors.primary),
-                ),
+                leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.primaryContainer, shape: BoxShape.circle), child: const Icon(Icons.email_outlined, color: AppColors.primary)),
                 title: const Text('Share via Email'),
                 subtitle: Text('Send to ${invoice.customer.email ?? "customer email"}'),
                 onTap: () async {
@@ -239,10 +168,7 @@ Thank you for your business!
                   final emailUrl = Uri(
                     scheme: 'mailto',
                     path: invoice.customer.email ?? '',
-                    queryParameters: {
-                      'subject': 'Tax Invoice ${invoice.invoiceNumber} from ${business.name}',
-                      'body': 'Dear ${invoice.customer.name},\n\nPlease find attached invoice ${invoice.invoiceNumber} for ${CurrencyFormatter.format(invoice.grandTotal)}. Balance Due: ${CurrencyFormatter.format(invoice.balanceDue)}.\n\nBest Regards,\n${business.name}',
-                    },
+                    queryParameters: {'subject': 'Tax Invoice ${invoice.invoiceNumber} from ${business.name}', 'body': 'Dear ${invoice.customer.name},\n\nPlease find attached invoice ${invoice.invoiceNumber} for ${CurrencyFormatter.format(invoice.grandTotal)}. Balance Due: ${CurrencyFormatter.format(invoice.balanceDue)}.\n\nBest Regards,\n${business.name}'},
                   );
                   if (await canLaunchUrl(emailUrl)) {
                     await launchUrl(emailUrl);

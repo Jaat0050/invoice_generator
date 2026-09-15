@@ -29,9 +29,13 @@ class ItemModel {
 
   factory ItemModel.fromJson(Map<String, dynamic> json) {
     return ItemModel(
-      id: json['id'] as int,
-      businessId: (json['business_id'] as int?) ?? 1,
-      name: json['name'] as String,
+      id: json['id'] is int
+          ? json['id'] as int
+          : (int.tryParse(json['id']?.toString() ?? '') ?? json['id']?.hashCode ?? 1),
+      businessId: json['business_id'] is int
+          ? json['business_id'] as int
+          : (int.tryParse(json['business_id']?.toString() ?? '') ?? 1),
+      name: (json['name'] as String?) ?? '',
       sku: json['sku'] as String?,
       hsnSac: json['hsn_sac'] as String?,
       unit: (json['unit'] as String?) ?? 'PCS',

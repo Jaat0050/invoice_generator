@@ -49,8 +49,10 @@ class BusinessModel {
 
   factory BusinessModel.fromJson(Map<String, dynamic> json) {
     return BusinessModel(
-      id: json['id'] as int,
-      name: json['name'] as String,
+      id: json['id'] is int
+          ? json['id'] as int
+          : (int.tryParse(json['id']?.toString() ?? '') ?? json['id']?.hashCode ?? 1),
+      name: (json['name'] as String?) ?? 'My Business',
       legalName: json['legal_name'] as String?,
       gstin: json['gstin'] as String?,
       pan: json['pan'] as String?,
@@ -69,7 +71,7 @@ class BusinessModel {
       bankIfsc: json['bank_ifsc'] as String?,
       bankBranch: json['bank_branch'] as String?,
       invoicePrefix: (json['invoice_prefix'] as String?) ?? 'INV-',
-      nextInvoiceNumber: (json['next_invoice_number'] as int?) ?? 1001,
+      nextInvoiceNumber: (json['next_invoice_number'] as num?)?.toInt() ?? 1001,
       currency: (json['currency'] as String?) ?? 'INR',
     );
   }

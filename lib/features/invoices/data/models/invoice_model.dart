@@ -68,9 +68,13 @@ class InvoiceModel {
 
   factory InvoiceModel.fromJson(Map<String, dynamic> json) {
     return InvoiceModel(
-      id: json['id'] as int,
-      businessId: (json['business_id'] as int?) ?? 1,
-      invoiceNumber: json['invoice_number'] as String,
+      id: json['id'] is int
+          ? json['id'] as int
+          : (int.tryParse(json['id']?.toString() ?? '') ?? json['id']?.hashCode ?? 1),
+      businessId: json['business_id'] is int
+          ? json['business_id'] as int
+          : (int.tryParse(json['business_id']?.toString() ?? '') ?? 1),
+      invoiceNumber: (json['invoice_number'] as String?) ?? 'INV-1001',
       referenceNumber: json['reference_number'] as String?,
       poNumber: json['po_number'] as String?,
       invoiceDate: DateTime.tryParse(json['invoice_date'] as String? ?? '') ?? DateTime.now(),

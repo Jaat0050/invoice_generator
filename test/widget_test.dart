@@ -11,6 +11,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Invoices'), findsWidgets);
+    expect(find.text('Sign In'), findsWidgets);
   });
 }

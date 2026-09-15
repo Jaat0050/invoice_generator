@@ -7,6 +7,7 @@ import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/responsive_wrapper.dart';
 import '../../../../core/widgets/shimmer_loader.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../data/models/invoice_model.dart';
@@ -48,90 +49,102 @@ class InvoiceListScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          // Filter Chips Row
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              children: [
-                _buildFilterChip(
-                  context,
-                  label: 'All',
-                  isSelected: currentFilter == null,
-                  onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(null),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  context,
-                  label: 'Unpaid',
-                  isSelected: currentFilter == InvoiceStatus.unpaid,
-                  onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(InvoiceStatus.unpaid),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  context,
-                  label: 'Partial',
-                  isSelected: currentFilter == InvoiceStatus.partiallyPaid,
-                  onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(InvoiceStatus.partiallyPaid),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  context,
-                  label: 'Paid',
-                  isSelected: currentFilter == InvoiceStatus.paid,
-                  onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(InvoiceStatus.paid),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  context,
-                  label: 'Overdue',
-                  isSelected: currentFilter == InvoiceStatus.overdue,
-                  onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(InvoiceStatus.overdue),
-                ),
-              ],
+      body: ResponsiveWrapper(
+        maxWidth: 1000,
+        child: Column(
+          children: [
+            // Filter Chips Row
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  _buildFilterChip(
+                    context,
+                    label: 'All',
+                    isSelected: currentFilter == null,
+                    onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(null),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    context,
+                    label: 'Unpaid',
+                    isSelected: currentFilter == InvoiceStatus.unpaid,
+                    onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(InvoiceStatus.unpaid),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    context,
+                    label: 'Partial',
+                    isSelected: currentFilter == InvoiceStatus.partiallyPaid,
+                    onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(InvoiceStatus.partiallyPaid),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    context,
+                    label: 'Paid',
+                    isSelected: currentFilter == InvoiceStatus.paid,
+                    onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(InvoiceStatus.paid),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    context,
+                    label: 'Overdue',
+                    isSelected: currentFilter == InvoiceStatus.overdue,
+                    onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(InvoiceStatus.overdue),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    context,
+                    label: 'Draft',
+                    isSelected: currentFilter == InvoiceStatus.draft,
+                    onSelected: () => ref.read(selectedFilterStatusProvider.notifier).setFilter(InvoiceStatus.draft),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Divider(),
 
-          // Invoices List
-          Expanded(
-            child: invoicesAsync.when(
-              data: (invoices) {
-                if (invoices.isEmpty) {
-                  return EmptyStateView(
-                    title: 'No Invoices Found',
-                    description: 'Create your first invoice by tapping the create button below.',
-                    icon: Icons.receipt_long_rounded,
-                    actionLabel: '+ Create Invoice',
-                    onAction: () => context.push('/create-invoice'),
-                  );
-                }
+            // Invoices List
+            Expanded(
+              child: invoicesAsync.when(
+                data: (invoices) {
+                  final filtered = currentFilter == null
+                      ? invoices
+                      : invoices.where((i) => i.status == currentFilter).toList();
 
-                return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(invoiceListProvider),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16.0),
-                    itemCount: invoices.length,
+                  if (filtered.isEmpty) {
+                    return EmptyStateView(
+                      title: 'No Invoices Found',
+                      description: currentFilter == null
+                          ? 'Create your first GST invoice in seconds.'
+                          : 'No invoices match the selected status filter.',
+                      icon: Icons.receipt_long_outlined,
+                      actionLabel: currentFilter == null ? '+ Create Invoice' : null,
+                      onAction: currentFilter == null ? () => context.push('/invoices/create') : null,
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    itemCount: filtered.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final invoice = invoices[index];
+                      final invoice = filtered[index];
                       return _buildInvoiceCard(context, invoice);
                     },
-                  ),
-                );
-              },
-              loading: () => ListView.separated(
-                padding: const EdgeInsets.all(16.0),
-                itemCount: 4,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (_, __) => const ShimmerLoader(width: double.infinity, height: 100),
+                  );
+                },
+                loading: () => ListView.separated(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: 4,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, __) => const ShimmerLoader(width: double.infinity, height: 100),
+                ),
+                error: (err, _) => Center(child: Text('Error loading invoices: $err')),
               ),
-              error: (err, _) => Center(child: Text('Error loading invoices: $err')),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

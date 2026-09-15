@@ -151,8 +151,43 @@ void main() {
 
   group('ReportsRepository Tests', () {
     test('Generates comprehensive report and CSV export', () async {
-      final invoiceRepo = InvoiceRepository();
-      final reportsRepo = ReportsRepository(invoiceRepo);
+      final fakeInvoiceRepo = _FakeInvoiceRepository([
+        InvoiceModel(
+          id: 1,
+          businessId: 1,
+          invoiceNumber: 'INV-1001',
+          invoiceDate: DateTime(2026, 9, 1),
+          dueDate: DateTime(2026, 9, 15),
+          customer: const CustomerModel(
+            id: 1,
+            businessId: 1,
+            name: 'Test Customer',
+            phone: '+91 98765 43210',
+          ),
+          items: const [
+            InvoiceItemModel(
+              description: 'Software Services',
+              quantity: 1,
+              rate: 10000.0,
+              taxableAmount: 10000.0,
+              taxRate: 18.0,
+              cgstAmount: 900.0,
+              sgstAmount: 900.0,
+              totalAmount: 11800.0,
+            ),
+          ],
+          subtotal: 10000.0,
+          taxableAmount: 10000.0,
+          totalCgst: 900.0,
+          totalSgst: 900.0,
+          grandTotal: 11800.0,
+          totalPaid: 11800.0,
+          balanceDue: 0.0,
+          status: InvoiceStatus.paid,
+        ),
+      ]);
+
+      final reportsRepo = ReportsRepository(fakeInvoiceRepo);
       final filter = ReportFilter.fromPreset(ReportDateRangePreset.thisMonth);
 
       final report = await reportsRepo.getReport(filter);
@@ -168,4 +203,15 @@ void main() {
       expect(summary.contains('BUSINESS FINANCIAL REPORT'), true);
     });
   });
+}
+
+class _FakeInvoiceRepository extends InvoiceRepository {
+  final List<InvoiceModel> _invoices;
+  _FakeInvoiceRepository(this._invoices);
+
+  @override
+  Future<List<InvoiceModel>> getInvoices({InvoiceStatus? filterStatus}) async {
+    if (filterStatus == null) return _invoices;
+    return _invoices.where((inv) => inv.status == filterStatus).toList();
+  }
 }

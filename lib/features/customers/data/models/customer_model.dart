@@ -41,9 +41,13 @@ class CustomerModel {
 
   factory CustomerModel.fromJson(Map<String, dynamic> json) {
     return CustomerModel(
-      id: json['id'] as int,
-      businessId: (json['business_id'] as int?) ?? 1,
-      name: json['name'] as String,
+      id: json['id'] is int
+          ? json['id'] as int
+          : (int.tryParse(json['id']?.toString() ?? '') ?? json['id']?.hashCode ?? 1),
+      businessId: json['business_id'] is int
+          ? json['business_id'] as int
+          : (int.tryParse(json['business_id']?.toString() ?? '') ?? 1),
+      name: (json['name'] as String?) ?? '',
       companyName: json['company_name'] as String?,
       email: json['email'] as String?,
       phone: (json['phone'] as String?) ?? '',

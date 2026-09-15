@@ -19,17 +19,17 @@ class _BusinessSetupWizardScreenState extends ConsumerState<BusinessSetupWizardS
   int _currentStep = 0;
 
   // Step 1: Business info
-  final _businessNameCtrl = TextEditingController(text: 'Apex Solutions Pvt Ltd');
+  final _businessNameCtrl = TextEditingController();
   final _gstinCtrl = TextEditingController();
-  final _cityCtrl = TextEditingController(text: 'Mumbai');
+  final _cityCtrl = TextEditingController();
   String _stateCode = '27';
   String _stateName = 'Maharashtra';
 
   // Step 2: Payment details
-  final _upiCtrl = TextEditingController(text: 'apexsolutions@icici');
-  final _bankNameCtrl = TextEditingController(text: 'HDFC Bank');
-  final _accountNumberCtrl = TextEditingController(text: '50200012345678');
-  final _ifscCtrl = TextEditingController(text: 'HDFC0001234');
+  final _upiCtrl = TextEditingController();
+  final _bankNameCtrl = TextEditingController();
+  final _accountNumberCtrl = TextEditingController();
+  final _ifscCtrl = TextEditingController();
 
   // Step 3: Prefix & Sequence
   final _prefixCtrl = TextEditingController(text: 'INV-');
@@ -219,7 +219,7 @@ class _BusinessSetupWizardScreenState extends ConsumerState<BusinessSetupWizardS
             const SizedBox(height: 20),
             AppTextField(
               label: 'Business / Trade Name *',
-              hint: 'Apex Solutions Pvt Ltd',
+              hint: 'e.g. Acme Enterprises',
               controller: _businessNameCtrl,
             ),
             const SizedBox(height: 14),

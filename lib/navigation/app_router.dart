@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/config/supabase_config.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
@@ -24,10 +27,62 @@ import 'main_shell_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Listenable adapter that bridges a stream to GoRouter's refreshListenable.
+class GoRouterRefreshStream extends ChangeNotifier {
+  late final StreamSubscription<dynamic> _subscription;
+
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen(
+      (dynamic _) => notifyListeners(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
+  GoRouterRefreshStream? refreshListenable;
+  if (SupabaseConfig.isConfigured) {
+    try {
+      refreshListenable = GoRouterRefreshStream(
+        Supabase.instance.client.auth.onAuthStateChange,
+      );
+    } catch (_) {}
+  }
+
   return GoRouter(
     navigatorKey: rootNavigatorKey,
+    refreshListenable: refreshListenable,
     initialLocation: '/dashboard',
+    redirect: (context, state) {
+      final isAuthRoute = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register' ||
+          state.matchedLocation == '/forgot-password';
+
+      bool isAuthenticatedAndHealthy = false;
+      if (SupabaseConfig.isConfigured) {
+        try {
+          final session = Supabase.instance.client.auth.currentSession;
+          final user = Supabase.instance.client.auth.currentUser;
+          isAuthenticatedAndHealthy = session != null && !session.isExpired && user != null;
+        } catch (_) {}
+      }
+
+      if (!isAuthenticatedAndHealthy && !isAuthRoute) {
+        return '/login';
+      }
+
+      if (isAuthenticatedAndHealthy && isAuthRoute) {
+        return '/dashboard';
+      }
+
+      return null;
+    },
     routes: [
       // Auth Routes
       GoRoute(

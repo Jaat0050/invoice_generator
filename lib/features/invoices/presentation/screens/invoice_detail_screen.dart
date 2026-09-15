@@ -7,6 +7,7 @@ import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/responsive_wrapper.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../payments/presentation/widgets/record_payment_bottom_sheet.dart';
 import '../../data/models/invoice_model.dart';
@@ -40,7 +41,9 @@ class InvoiceDetailScreen extends ConsumerWidget {
         ],
       ),
       body: invoiceAsync.when(
-        data: (invoice) => ListView(
+        data: (invoice) => ResponsiveWrapper(
+          maxWidth: 860,
+          child: ListView(
           padding: AppDimensions.pagePadding,
           children: [
             // Status & Total Card
@@ -190,7 +193,8 @@ class InvoiceDetailScreen extends ConsumerWidget {
             const SizedBox(height: 40),
           ],
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Error loading invoice: $err')),
       ),
     );

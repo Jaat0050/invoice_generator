@@ -24,7 +24,7 @@ void main() {
 
       expect(find.text('Business Profile'), findsOneWidget);
       expect(find.text('Trade / Brand Name *'), findsOneWidget);
-      expect(find.text('Apex Solutions Pvt Ltd'), findsWidgets);
+      expect(find.text('My Business'), findsWidgets);
       expect(find.text('Save Business Profile'), findsOneWidget);
     });
 

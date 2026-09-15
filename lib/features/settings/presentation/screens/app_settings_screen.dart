@@ -15,7 +15,7 @@ class AppSettingsState {
 
   const AppSettingsState({
     this.defaultTerms = '1. Payment is due within 15 days of invoice date.\n2. Interest @ 18% p.a. will be charged on delayed payments.\n3. Goods once sold will not be taken back.',
-    this.defaultNotes = 'Thank you for your business! For any billing queries, please reach out to billing@apexsolutions.com',
+    this.defaultNotes = 'Thank you for your business! Please contact us for any billing inquiries.',
     this.defaultDueDays = 15,
     this.autoRoundOff = true,
     this.useIndianNumbering = true,

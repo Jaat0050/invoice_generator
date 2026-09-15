@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/theme/typography.dart';
+import '../../../../core/widgets/responsive_wrapper.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
 
 class MoreMenuScreen extends ConsumerWidget {
@@ -18,7 +19,9 @@ class MoreMenuScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('More Options'),
       ),
-      body: ListView(
+      body: ResponsiveWrapper(
+        maxWidth: 800,
+        child: ListView(
         padding: AppDimensions.pagePadding,
         children: [
           // Business Card
@@ -57,7 +60,7 @@ class MoreMenuScreen extends ConsumerWidget {
                         ],
                       ),
                       loading: () => const Text('Loading business...'),
-                      error: (_, __) => const Text('Apex Solutions Pvt Ltd'),
+                      error: (_, __) => const Text('My Business'),
                     ),
                   ),
                   const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
@@ -131,8 +134,9 @@ class MoreMenuScreen extends ConsumerWidget {
           const SizedBox(height: 40),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSectionHeader(String title) {
     return Padding(

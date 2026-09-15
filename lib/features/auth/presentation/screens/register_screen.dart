@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/responsive_wrapper.dart';
 import '../../data/repositories/auth_repository.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -57,7 +60,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       );
 
       if (mounted) {
-        context.go('/dashboard');
+        bool hasActiveSession = false;
+        if (SupabaseConfig.isConfigured) {
+          try {
+            hasActiveSession = Supabase.instance.client.auth.currentSession != null;
+          } catch (_) {}
+        }
+
+        if (hasActiveSession) {
+          context.go('/dashboard');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account created successfully! Please check your email to confirm if needed, then sign in.'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+          context.go('/login');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -80,126 +100,141 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: AppDimensions.pagePadding,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 10),
-                Text('Get Started with Invoicify', style: AppTypography.headingLarge),
-                const SizedBox(height: 4),
-                Text(
-                  'Create GST-compliant invoices in under 60 seconds.',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 24),
-
-                AppTextField(
-                  label: 'Full Name *',
-                  hint: 'e.g. Mukund Sharma',
-                  controller: _nameController,
-                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
-                  validator: (v) => Validators.required(v, 'Name'),
-                ),
-                const SizedBox(height: 16),
-
-                AppTextField(
-                  label: 'Business / Company Name *',
-                  hint: 'e.g. Apex Solutions Pvt Ltd',
-                  controller: _businessNameController,
-                  prefixIcon: const Icon(Icons.business_rounded, size: 20),
-                  validator: (v) => Validators.required(v, 'Business Name'),
-                ),
-                const SizedBox(height: 16),
-
-                AppTextField(
-                  label: 'Work Email *',
-                  hint: 'name@company.com',
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
-                  validator: Validators.email,
-                ),
-                const SizedBox(height: 16),
-
-                AppTextField(
-                  label: 'Phone Number *',
-                  hint: '+91 9876543210',
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                  validator: Validators.phone,
-                ),
-                const SizedBox(height: 16),
-
-                DropdownButtonFormField<String>(
-                  value: _selectedStateCode,
-                  decoration: const InputDecoration(
-                    labelText: 'Registered State (for GST)',
-                    prefixIcon: Icon(Icons.location_on_outlined, size: 20),
+          child: ResponsiveWrapper(
+            maxWidth: 520,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 10),
+                  Text('Get Started with Invoicify', style: AppTypography.headingLarge),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Create GST-compliant invoices in under 60 seconds.',
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: '27', child: Text('27 - Maharashtra')),
-                    DropdownMenuItem(value: '07', child: Text('07 - Delhi')),
-                    DropdownMenuItem(value: '29', child: Text('29 - Karnataka')),
-                    DropdownMenuItem(value: '33', child: Text('33 - Tamil Nadu')),
-                    DropdownMenuItem(value: '24', child: Text('24 - Gujarat')),
-                    DropdownMenuItem(value: '36', child: Text('36 - Telangana')),
-                    DropdownMenuItem(value: '09', child: Text('09 - Uttar Pradesh')),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() {
-                        _selectedStateCode = v;
-                        if (v == '27') _selectedState = 'Maharashtra';
-                        if (v == '07') _selectedState = 'Delhi';
-                        if (v == '29') _selectedState = 'Karnataka';
-                        if (v == '33') _selectedState = 'Tamil Nadu';
-                        if (v == '24') _selectedState = 'Gujarat';
-                        if (v == '36') _selectedState = 'Telangana';
-                        if (v == '09') _selectedState = 'Uttar Pradesh';
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                AppTextField(
-                  label: 'Password *',
-                  hint: '••••••••',
-                  controller: _passwordController,
-                  obscureText: true,
-                  prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
-                  validator: (v) {
-                    if (v == null || v.length < 6) return 'Password must be at least 6 characters';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
+                  AppTextField(
+                    label: 'Full Name *',
+                    hint: 'e.g. Mukund Sharma',
+                    controller: _nameController,
+                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                    validator: (v) => Validators.required(v, 'Name'),
+                  ),
+                  const SizedBox(height: 16),
 
-                AppButton(
-                  label: 'Create Free Account',
-                  icon: Icons.arrow_forward_rounded,
-                  isLoading: _isLoading,
-                  onPressed: _handleRegister,
-                ),
-                const SizedBox(height: 16),
+                  AppTextField(
+                    label: 'Business / Company Name *',
+                    hint: 'e.g. Acme Enterprises Pvt Ltd',
+                    controller: _businessNameController,
+                    prefixIcon: const Icon(Icons.business_rounded, size: 20),
+                    validator: (v) => Validators.required(v, 'Business Name'),
+                  ),
+                  const SizedBox(height: 16),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Already have an account? ', style: AppTypography.bodySmall),
-                    GestureDetector(
-                      onTap: () => context.pop(),
-                      child: Text(
-                        'Sign In',
-                        style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
-                      ),
+                  AppTextField(
+                    label: 'Work Email *',
+                    hint: 'name@business.com',
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                    validator: (v) => Validators.required(v) ?? Validators.email(v),
+                  ),
+                  const SizedBox(height: 16),
+
+                  AppTextField(
+                    label: 'Phone Number (Optional)',
+                    hint: '9876543210',
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                    validator: Validators.phone,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // State Selector for GST State Code
+                  DropdownButtonFormField<String>(
+                    value: _selectedState,
+                    decoration: const InputDecoration(
+                      labelText: 'Business State (for GST) *',
+                      prefixIcon: Icon(Icons.map_outlined, size: 20),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 30),
-              ],
+                    items: const [
+                      DropdownMenuItem(value: 'Maharashtra', child: Text('Maharashtra (27)')),
+                      DropdownMenuItem(value: 'Delhi', child: Text('Delhi (07)')),
+                      DropdownMenuItem(value: 'Karnataka', child: Text('Karnataka (29)')),
+                      DropdownMenuItem(value: 'Tamil Nadu', child: Text('Tamil Nadu (33)')),
+                      DropdownMenuItem(value: 'Gujarat', child: Text('Gujarat (24)')),
+                      DropdownMenuItem(value: 'Uttar Pradesh', child: Text('Uttar Pradesh (09)')),
+                      DropdownMenuItem(value: 'Telangana', child: Text('Telangana (36)')),
+                      DropdownMenuItem(value: 'West Bengal', child: Text('West Bengal (19)')),
+                      DropdownMenuItem(value: 'Rajasthan', child: Text('Rajasthan (08)')),
+                      DropdownMenuItem(value: 'Haryana', child: Text('Haryana (06)')),
+                      DropdownMenuItem(value: 'Kerala', child: Text('Kerala (32)')),
+                      DropdownMenuItem(value: 'Madhya Pradesh', child: Text('Madhya Pradesh (23)')),
+                      DropdownMenuItem(value: 'Punjab', child: Text('Punjab (03)')),
+                      DropdownMenuItem(value: 'Bihar', child: Text('Bihar (10)')),
+                      DropdownMenuItem(value: 'Andhra Pradesh', child: Text('Andhra Pradesh (37)')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedState = val;
+                          final stateCodes = {
+                            'Jammu & Kashmir': '01', 'Himachal Pradesh': '02', 'Punjab': '03',
+                            'Chandigarh': '04', 'Uttarakhand': '05', 'Haryana': '06',
+                            'Delhi': '07', 'Rajasthan': '08', 'Uttar Pradesh': '09',
+                            'Bihar': '10', 'West Bengal': '19', 'Gujarat': '24',
+                            'Maharashtra': '27', 'Karnataka': '29', 'Kerala': '32',
+                            'Tamil Nadu': '33', 'Telangana': '36', 'Andhra Pradesh': '37',
+                            'Madhya Pradesh': '23',
+                          };
+                          _selectedStateCode = stateCodes[val] ?? '27';
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  AppTextField(
+                    label: 'Password *',
+                    hint: '••••••••',
+                    controller: _passwordController,
+                    obscureText: true,
+                    prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                    validator: (v) {
+                      if (v == null || v.length < 6) return 'Password must be at least 6 characters';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  AppButton(
+                    label: 'Create Free Account',
+                    icon: Icons.arrow_forward_rounded,
+                    isLoading: _isLoading,
+                    onPressed: _handleRegister,
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Already have an account? ', style: AppTypography.bodySmall),
+                      GestureDetector(
+                        onTap: () => context.pop(),
+                        child: Text(
+                          'Sign In',
+                          style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                ],
+              ),
             ),
           ),
         ),
