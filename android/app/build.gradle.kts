@@ -13,6 +13,15 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+val releaseStoreFile = keystoreProperties.getProperty("storeFile")?.let { path ->
+    val f = file(path)
+    if (f.exists()) f else rootProject.file(path)
+}
+val hasReleaseKeystore = keystorePropertiesFile.exists() &&
+    !keystoreProperties.getProperty("keyAlias").isNullOrEmpty() &&
+    releaseStoreFile != null &&
+    releaseStoreFile.exists()
+
 android {
     namespace = "com.invoicify.app"
     compileSdk = 36
@@ -30,7 +39,7 @@ android {
 
     defaultConfig {
         applicationId = "com.invoicify.app"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -38,18 +47,22 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { storeFilePath ->
-                file(storeFilePath as String)
+            if (hasReleaseKeystore) {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = releaseStoreFile
+                storePassword = keystoreProperties.getProperty("storePassword")
             }
-            storePassword = keystoreProperties["storePassword"] as String?
         }
     }
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
