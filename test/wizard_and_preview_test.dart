@@ -53,7 +53,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
 
-      expect(find.text('Create GST Invoice'), findsOneWidget);
+      expect(find.text('Create GST Tax Invoice'), findsOneWidget);
       expect(find.text('Invoice Number'), findsOneWidget);
       expect(find.text('Quick Payment Terms'), findsOneWidget);
     });

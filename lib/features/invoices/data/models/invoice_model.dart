@@ -11,11 +11,15 @@ class InvoiceModel {
   final String invoiceNumber;
   final String? referenceNumber;
   final String? poNumber;
+  final String invoiceTitle;
+  final bool isGst;
   final DateTime invoiceDate;
-  final DateTime dueDate;
+  final DateTime? dueDate;
   final CustomerModel customer;
   final List<InvoiceItemModel> items;
   final GstType gstType;
+  final String? placeOfSupply;
+  final String? placeOfSupplyStateCode;
   final double subtotal;
   final double totalDiscount;
   final double taxableAmount;
@@ -41,11 +45,15 @@ class InvoiceModel {
     required this.invoiceNumber,
     this.referenceNumber,
     this.poNumber,
+    this.invoiceTitle = 'TAX INVOICE',
+    this.isGst = true,
     required this.invoiceDate,
-    required this.dueDate,
+    this.dueDate,
     required this.customer,
     required this.items,
     this.gstType = GstType.intraState,
+    this.placeOfSupply,
+    this.placeOfSupplyStateCode,
     required this.subtotal,
     this.totalDiscount = 0.0,
     required this.taxableAmount,
@@ -77,14 +85,18 @@ class InvoiceModel {
       invoiceNumber: (json['invoice_number'] as String?) ?? 'INV-1001',
       referenceNumber: json['reference_number'] as String?,
       poNumber: json['po_number'] as String?,
+      invoiceTitle: (json['invoice_title'] as String?) ?? ((json['is_gst'] == false) ? 'BILL OF SUPPLY' : 'TAX INVOICE'),
+      isGst: (json['is_gst'] as bool?) ?? true,
       invoiceDate: DateTime.tryParse(json['invoice_date'] as String? ?? '') ?? DateTime.now(),
-      dueDate: DateTime.tryParse(json['due_date'] as String? ?? '') ?? DateTime.now().add(const Duration(days: 15)),
+      dueDate: json['due_date'] != null ? DateTime.tryParse(json['due_date'] as String) : null,
       customer: CustomerModel.fromJson(json['customer'] as Map<String, dynamic>),
       items: (json['items'] as List<dynamic>?)
               ?.map((e) => InvoiceItemModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
       gstType: (json['gst_type'] as String?) == 'inter_state' ? GstType.interState : GstType.intraState,
+      placeOfSupply: json['place_of_supply'] as String?,
+      placeOfSupplyStateCode: json['place_of_supply_state_code'] as String?,
       subtotal: (json['subtotal'] as num).toDouble(),
       totalDiscount: (json['total_discount'] as num?)?.toDouble() ?? 0.0,
       taxableAmount: (json['taxable_amount'] as num).toDouble(),
@@ -116,11 +128,15 @@ class InvoiceModel {
       'invoice_number': invoiceNumber,
       'reference_number': referenceNumber,
       'po_number': poNumber,
+      'invoice_title': invoiceTitle,
+      'is_gst': isGst,
       'invoice_date': invoiceDate.toIso8601String(),
-      'due_date': dueDate.toIso8601String(),
+      'due_date': dueDate?.toIso8601String(),
       'customer': customer.toJson(),
       'items': items.map((e) => e.toJson()).toList(),
       'gst_type': gstType == GstType.interState ? 'inter_state' : 'intra_state',
+      'place_of_supply': placeOfSupply,
+      'place_of_supply_state_code': placeOfSupplyStateCode,
       'subtotal': subtotal,
       'total_discount': totalDiscount,
       'taxable_amount': taxableAmount,
@@ -168,11 +184,17 @@ class InvoiceModel {
     String? invoiceNumber,
     String? referenceNumber,
     String? poNumber,
+    String? invoiceTitle,
+    bool? isGst,
     DateTime? invoiceDate,
     DateTime? dueDate,
+    bool clearDueDate = false,
     CustomerModel? customer,
     List<InvoiceItemModel>? items,
     GstType? gstType,
+    String? placeOfSupply,
+    String? placeOfSupplyStateCode,
+    bool clearPlaceOfSupply = false,
     double? subtotal,
     double? totalDiscount,
     double? taxableAmount,
@@ -198,11 +220,15 @@ class InvoiceModel {
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
       referenceNumber: referenceNumber ?? this.referenceNumber,
       poNumber: poNumber ?? this.poNumber,
+      invoiceTitle: invoiceTitle ?? this.invoiceTitle,
+      isGst: isGst ?? this.isGst,
       invoiceDate: invoiceDate ?? this.invoiceDate,
-      dueDate: dueDate ?? this.dueDate,
+      dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
       customer: customer ?? this.customer,
       items: items ?? this.items,
       gstType: gstType ?? this.gstType,
+      placeOfSupply: clearPlaceOfSupply ? null : (placeOfSupply ?? this.placeOfSupply),
+      placeOfSupplyStateCode: clearPlaceOfSupply ? null : (placeOfSupplyStateCode ?? this.placeOfSupplyStateCode),
       subtotal: subtotal ?? this.subtotal,
       totalDiscount: totalDiscount ?? this.totalDiscount,
       taxableAmount: taxableAmount ?? this.taxableAmount,

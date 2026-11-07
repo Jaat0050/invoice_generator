@@ -76,6 +76,7 @@ class GstCalculator {
     double discountFixed = 0.0,
     required double taxRate,
     required GstSupplyType supplyType,
+    bool isGst = true,
   }) {
     final gross = quantity * rate;
     
@@ -90,6 +91,7 @@ class GstCalculator {
 
     final taxable = gross - discount;
 
+    double effectiveTaxRate = isGst ? taxRate : 0.0;
     double cgstRate = 0.0;
     double cgstAmount = 0.0;
     double sgstRate = 0.0;
@@ -97,14 +99,16 @@ class GstCalculator {
     double igstRate = 0.0;
     double igstAmount = 0.0;
 
-    if (supplyType == GstSupplyType.intraState) {
-      cgstRate = taxRate / 2;
-      sgstRate = taxRate / 2;
-      cgstAmount = taxable * (cgstRate / 100);
-      sgstAmount = taxable * (sgstRate / 100);
-    } else {
-      igstRate = taxRate;
-      igstAmount = taxable * (igstRate / 100);
+    if (isGst && effectiveTaxRate > 0) {
+      if (supplyType == GstSupplyType.intraState) {
+        cgstRate = effectiveTaxRate / 2;
+        sgstRate = effectiveTaxRate / 2;
+        cgstAmount = taxable * (cgstRate / 100);
+        sgstAmount = taxable * (sgstRate / 100);
+      } else {
+        igstRate = effectiveTaxRate;
+        igstAmount = taxable * (igstRate / 100);
+      }
     }
 
     final totalAmount = taxable + cgstAmount + sgstAmount + igstAmount;
@@ -115,7 +119,7 @@ class GstCalculator {
       grossAmount: gross,
       discountAmount: discount,
       taxableAmount: taxable,
-      taxRate: taxRate,
+      taxRate: effectiveTaxRate,
       cgstRate: cgstRate,
       cgstAmount: cgstAmount,
       sgstRate: sgstRate,
@@ -181,17 +185,26 @@ class GstCalculator {
 
   /// Helper to determine whether two state codes or state names constitute Intra-State or Inter-State supply.
   static GstSupplyType determineSupplyType({
-    required String businessState,
-    required String customerBillingState,
+    required String? businessState,
+    required String? customerBillingState,
   }) {
-    if (businessState.trim().isEmpty || customerBillingState.trim().isEmpty) {
+    if (businessState == null ||
+        customerBillingState == null ||
+        businessState.trim().isEmpty ||
+        customerBillingState.trim().isEmpty) {
       return GstSupplyType.intraState;
     }
-    
-    // Check if states match (case-insensitive)
-    final bState = businessState.trim().toLowerCase();
+
     final cState = customerBillingState.trim().toLowerCase();
-    
+    if (cState == 'none' ||
+        cState == 'n/a' ||
+        cState == 'not applicable' ||
+        cState.startsWith('none') ||
+        cState.contains('not applicable')) {
+      return GstSupplyType.intraState;
+    }
+
+    final bState = businessState.trim().toLowerCase();
     return (bState == cState) ? GstSupplyType.intraState : GstSupplyType.interState;
   }
 }

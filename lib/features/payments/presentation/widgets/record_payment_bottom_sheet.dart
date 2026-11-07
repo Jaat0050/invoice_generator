@@ -96,13 +96,22 @@ class _RecordPaymentBottomSheetState extends ConsumerState<RecordPaymentBottomSh
       if (mounted) {
         Navigator.pop(context); // close bottom sheet
 
-        // Show receipt dialog
-        PaymentReceiptDialog.show(
-          context,
-          payment: updatedInvoice.payments.last,
-          invoiceNumber: widget.invoice.invoiceNumber,
-          customerName: widget.invoice.customer.name,
-        );
+        // Show receipt dialog if payment record exists
+        if (updatedInvoice.payments.isNotEmpty) {
+          PaymentReceiptDialog.show(
+            context,
+            payment: updatedInvoice.payments.last,
+            invoiceNumber: widget.invoice.invoiceNumber,
+            customerName: widget.invoice.customer.name,
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Payment recorded successfully!'),
+              backgroundColor: AppColors.successDark,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -175,4 +175,62 @@ class CustomerRepository {
       rethrow;
     }
   }
+
+  Future<CustomerModel> updateCustomer(CustomerModel customer) async {
+    final sb = _supabase;
+    _assertAuthenticated(sb);
+    final user = sb!.auth.currentUser!;
+
+    try {
+      final updated = await sb
+          .from('customers')
+          .update({
+            'name': customer.name,
+            'company_name': customer.companyName,
+            'email': customer.email,
+            'phone': customer.phone,
+            'gstin': customer.gstin,
+            'billing_address': customer.billingAddress,
+            'billing_city': customer.billingCity,
+            'billing_state': customer.billingState,
+            'billing_state_code': customer.billingStateCode,
+            'billing_pincode': customer.billingPincode,
+            'shipping_address': customer.shippingAddress,
+          })
+          .eq('id', customer.id)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+
+      return customer.copyWith(
+        name: updated['name'] as String,
+        companyName: updated['company_name'] as String?,
+        email: updated['email'] as String?,
+        phone: updated['phone'] as String,
+        gstin: updated['gstin'] as String?,
+        billingAddress: updated['billing_address'] as String?,
+        billingCity: updated['billing_city'] as String?,
+        billingState: (updated['billing_state'] as String?) ?? customer.billingState,
+        billingStateCode: (updated['billing_state_code'] as String?) ?? customer.billingStateCode,
+        billingPincode: updated['billing_pincode'] as String?,
+        shippingAddress: updated['shipping_address'] as String?,
+      );
+    } catch (e) {
+      debugPrint('Supabase updateCustomer error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteCustomer(int id) async {
+    final sb = _supabase;
+    _assertAuthenticated(sb);
+    final user = sb!.auth.currentUser!;
+
+    try {
+      await sb.from('customers').delete().eq('id', id).eq('user_id', user.id);
+    } catch (e) {
+      debugPrint('Supabase deleteCustomer error: $e');
+      rethrow;
+    }
+  }
 }

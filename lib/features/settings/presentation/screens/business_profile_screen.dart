@@ -6,8 +6,10 @@ import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/image_upload_card.dart';
 import '../../../auth/data/models/business_model.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
+import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   const BusinessProfileScreen({super.key});
@@ -33,6 +35,8 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
 
   String _selectedStateCode = '27';
   String _selectedStateName = 'Maharashtra';
+  String? _logoUrl;
+  String? _signatureUrl;
   bool _isSaving = false;
   bool _isInitialized = false;
 
@@ -108,6 +112,8 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
 
     _selectedStateCode = business.stateCode ?? '27';
     _selectedStateName = business.state;
+    _logoUrl = business.logoUrl;
+    _signatureUrl = business.signatureUrl;
     _isInitialized = true;
   }
 
@@ -164,11 +170,14 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
         state: _selectedStateName,
         stateCode: _selectedStateCode,
         pincode: _pincodeController.text.trim().isEmpty ? null : _pincodeController.text.trim(),
+        logoUrl: _logoUrl,
+        signatureUrl: _signatureUrl,
         invoicePrefix: _prefixController.text.trim().isEmpty ? 'INV-' : _prefixController.text.trim(),
         nextInvoiceNumber: int.tryParse(_nextNumberController.text.trim()) ?? current.nextInvoiceNumber,
       );
 
       await ref.read(businessNotifierProvider.notifier).updateBusiness(updated);
+      ref.invalidate(activeBusinessProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -204,38 +213,21 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
             child: ListView(
               padding: AppDimensions.pagePadding,
               children: [
-                // Branding Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer,
-                            borderRadius: AppDimensions.roundedMd,
-                          ),
-                          child: const Icon(Icons.business_rounded, color: AppColors.primary, size: 32),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(business.name, style: AppTypography.headingSmall),
-                              const SizedBox(height: 2),
-                              Text(
-                                'State: $selectedStateLabel',
-                                style: AppTypography.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                // Logo & Signature Section
+                _buildSectionHeader('Brand Identity & Signature'),
+                ImageUploadCard(
+                  title: 'Company Logo',
+                  subtitle: 'Displayed in invoice headers, PDFs, and customer emails.',
+                  currentUrl: _logoUrl,
+                  onImageUpdated: (newUrl) => setState(() => _logoUrl = newUrl),
+                ),
+                const SizedBox(height: 12),
+                ImageUploadCard(
+                  title: 'Authorized Signature *',
+                  subtitle: 'Mandatory signature embedded on all tax invoices & bills of supply.',
+                  isSignature: true,
+                  currentUrl: _signatureUrl,
+                  onImageUpdated: (newUrl) => setState(() => _signatureUrl = newUrl),
                 ),
                 const SizedBox(height: AppDimensions.lg),
 

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,10 +32,9 @@ class BusinessNotifier extends AsyncNotifier<BusinessModel> {
 
   Future<void> updateBusiness(BusinessModel updated) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final repo = ref.read(authRepositoryProvider);
-      return repo.updateBusiness(updated);
-    });
+    final repo = ref.read(authRepositoryProvider);
+    final saved = await repo.updateBusiness(updated);
+    state = AsyncValue.data(saved);
   }
 }
 
@@ -94,12 +94,49 @@ class AuthRepository {
       );
       final user = res.user;
       if (user != null) {
+        // Query business profile to inspect is_active & is_deleted
+        Map<String, dynamic>? businessRow;
+        try {
+          businessRow = await sb
+              .from('businesses')
+              .select('is_active, is_deleted')
+              .eq('user_id', user.id)
+              .maybeSingle();
+        } catch (e) {
+          debugPrint('Notice querying user status: $e');
+        }
+
+        final userMeta = user.userMetadata ?? {};
+        final bool isActive = (businessRow?['is_active'] as bool?) ??
+            (userMeta['is_active'] as bool?) ??
+            true;
+
+        final bool isDeleted = (businessRow?['is_deleted'] as bool?) ??
+            (userMeta['is_deleted'] as bool?) ??
+            false;
+
+        // Check is_deleted
+        if (isDeleted) {
+          await sb.auth.signOut();
+          await storage.clearAll();
+          throw Exception('This account has been deleted. Please contact support.');
+        }
+
+        // Check is_active
+        if (!isActive) {
+          await sb.auth.signOut();
+          await storage.clearAll();
+          throw Exception('This account is deactivated. Please contact support.');
+        }
+
         final userModel = UserModel(
           id: user.id.hashCode,
           name: (user.userMetadata?['name'] as String?) ?? user.email?.split('@').first ?? 'Owner',
           email: user.email ?? email,
           phone: (user.userMetadata?['phone'] as String?) ?? '',
           role: 'owner',
+          isActive: isActive,
+          isDeleted: isDeleted,
         );
         await storage.saveTokens(accessToken: res.session?.accessToken ?? 'sb_token');
         await storage.setActiveBusinessId(1);
@@ -138,6 +175,8 @@ class AuthRepository {
           'business_name': businessName,
           'state': state,
           'state_code': stateCode,
+          'is_active': true,
+          'is_deleted': false,
         },
       );
 
@@ -149,6 +188,8 @@ class AuthRepository {
           email: email,
           phone: phone,
           role: 'owner',
+          isActive: true,
+          isDeleted: false,
         );
 
         // If session is active immediately, insert or upsert initial business row
@@ -161,6 +202,8 @@ class AuthRepository {
               'phone': phone,
               'state': state,
               'state_code': stateCode,
+              'is_active': true,
+              'is_deleted': false,
               'invoice_prefix': 'INV-',
               'next_invoice_number': 1001,
               'currency': 'INR',
@@ -209,6 +252,16 @@ class AuthRepository {
   Future<BusinessModel> getActiveBusiness() async {
     final sb = _supabase;
     final currentUser = sb?.auth.currentUser;
+
+    // 1. Try reading from persistent local cache first so logo/signature are never lost
+    try {
+      final cachedJson = await storage.getBusinessProfileJson(userId: currentUser?.id);
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        final local = BusinessModel.fromJson(jsonDecode(cachedJson));
+        _activeBusiness = local;
+      }
+    } catch (_) {}
+
     if (sb != null && currentUser != null) {
       try {
         final res = await sb
@@ -218,7 +271,28 @@ class AuthRepository {
             .maybeSingle();
 
         if (res != null) {
-          _activeBusiness = BusinessModel.fromJson(res);
+          final remoteBusiness = BusinessModel.fromJson(res);
+
+          // If account is deleted or inactive, sign out immediately
+          if (remoteBusiness.isDeleted) {
+            await logout();
+            throw Exception('This account has been deleted. Please contact support.');
+          }
+          if (!remoteBusiness.isActive) {
+            await logout();
+            throw Exception('This account is deactivated. Please contact support.');
+          }
+
+          // Retain local logo/signature if Supabase has not yet stored them
+          _activeBusiness = remoteBusiness.copyWith(
+            logoUrl: (remoteBusiness.logoUrl != null && remoteBusiness.logoUrl!.trim().isNotEmpty)
+                ? remoteBusiness.logoUrl
+                : _activeBusiness.logoUrl,
+            signatureUrl: (remoteBusiness.signatureUrl != null && remoteBusiness.signatureUrl!.trim().isNotEmpty)
+                ? remoteBusiness.signatureUrl
+                : _activeBusiness.signatureUrl,
+          );
+          await storage.saveBusinessProfileJson(jsonEncode(_activeBusiness.toJson()), userId: currentUser.id);
           return _activeBusiness;
         } else {
           // If business row does not exist yet (e.g., first login after email verification), auto-create it
@@ -236,13 +310,20 @@ class AuthRepository {
               'phone': phone,
               'state': state,
               'state_code': stateCode,
+              'is_active': true,
+              'is_deleted': false,
               'invoice_prefix': 'INV-',
               'next_invoice_number': 1001,
               'currency': 'INR',
             }, onConflict: 'user_id').select().maybeSingle();
 
             if (inserted != null) {
-              _activeBusiness = BusinessModel.fromJson(inserted);
+              final created = BusinessModel.fromJson(inserted);
+              _activeBusiness = created.copyWith(
+                logoUrl: created.logoUrl ?? _activeBusiness.logoUrl,
+                signatureUrl: created.signatureUrl ?? _activeBusiness.signatureUrl,
+              );
+              await storage.saveBusinessProfileJson(jsonEncode(_activeBusiness.toJson()), userId: currentUser.id);
               return _activeBusiness;
             }
           } catch (insertErr) {
@@ -258,21 +339,50 @@ class AuthRepository {
   }
 
   Future<BusinessModel> updateBusiness(BusinessModel updated) async {
+    _activeBusiness = updated;
     final sb = _supabase;
     final currentUser = sb?.auth.currentUser;
+
+    try {
+      await storage.saveBusinessProfileJson(jsonEncode(updated.toJson()), userId: currentUser?.id);
+    } catch (_) {}
+
     if (sb != null && currentUser != null) {
+      final payload = updated.toJson();
+      payload.remove('id'); // Do not pass client ID on upsert with onConflict: user_id
+      payload['updated_at'] = DateTime.now().toIso8601String();
+
       try {
-        await sb.from('businesses').upsert({
+        final res = await sb.from('businesses').upsert({
           'user_id': currentUser.id,
-          ...updated.toJson(),
-          'updated_at': DateTime.now().toIso8601String(),
-        }, onConflict: 'user_id');
+          ...payload,
+        }, onConflict: 'user_id').select().maybeSingle();
+
+        if (res != null) {
+          final fromDb = BusinessModel.fromJson(res);
+          _activeBusiness = fromDb.copyWith(
+            logoUrl: fromDb.logoUrl ?? updated.logoUrl,
+            signatureUrl: fromDb.signatureUrl ?? updated.signatureUrl,
+          );
+          await storage.saveBusinessProfileJson(jsonEncode(_activeBusiness.toJson()), userId: currentUser.id);
+        }
       } catch (e) {
-        debugPrint('Error updating business in Supabase: $e');
+        debugPrint('Error updating business in Supabase with all fields: $e');
+        // Fallback: If logo_url or signature_url columns don't exist yet in Supabase, retry with basic fields
+        try {
+          final fallbackMap = Map<String, dynamic>.from(payload)
+            ..remove('logo_url')
+            ..remove('signature_url');
+          await sb.from('businesses').upsert({
+            'user_id': currentUser.id,
+            ...fallbackMap,
+          }, onConflict: 'user_id');
+        } catch (fallbackErr) {
+          debugPrint('Fallback business update failed: $fallbackErr');
+        }
       }
     }
 
-    _activeBusiness = updated;
     return _activeBusiness;
   }
 

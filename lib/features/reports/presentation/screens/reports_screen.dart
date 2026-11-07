@@ -24,8 +24,7 @@ class ReportFilterNotifier extends Notifier<ReportFilter> {
   }
 }
 
-final reportFilterProvider =
-    NotifierProvider<ReportFilterNotifier, ReportFilter>(ReportFilterNotifier.new);
+final reportFilterProvider = NotifierProvider<ReportFilterNotifier, ReportFilter>(ReportFilterNotifier.new);
 
 final reportDataProvider = FutureProvider.autoDispose<ComprehensiveReportData>((ref) async {
   final repo = ref.watch(reportsRepositoryProvider);
@@ -52,9 +51,7 @@ class ReportsScreen extends ConsumerWidget {
             onPressed: () async {
               final repo = ref.read(reportsRepositoryProvider);
               final summaryText = await repo.generateShareableSummary(filter);
-              SharePlus.instance.share(
-                ShareParams(text: summaryText, subject: 'Business Financial Summary'),
-              );
+              SharePlus.instance.share(ShareParams(text: summaryText, subject: 'Business Financial Summary'));
             },
           ),
         ],
@@ -62,177 +59,96 @@ class ReportsScreen extends ConsumerWidget {
       body: ResponsiveWrapper(
         maxWidth: 1000,
         child: ListView(
-        padding: AppDimensions.pagePadding,
-        children: [
-          // Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildDateChip(
-                  context,
-                  ref,
-                  label: 'This Month',
-                  isSelected: filter.preset == ReportDateRangePreset.thisMonth,
-                  preset: ReportDateRangePreset.thisMonth,
-                ),
-                const SizedBox(width: 8),
-                _buildDateChip(
-                  context,
-                  ref,
-                  label: 'This Week',
-                  isSelected: filter.preset == ReportDateRangePreset.thisWeek,
-                  preset: ReportDateRangePreset.thisWeek,
-                ),
-                const SizedBox(width: 8),
-                _buildDateChip(
-                  context,
-                  ref,
-                  label: 'Fiscal Year',
-                  isSelected: filter.preset == ReportDateRangePreset.thisFiscalYear,
-                  preset: ReportDateRangePreset.thisFiscalYear,
-                ),
-                const SizedBox(width: 8),
-                _buildDateChip(
-                  context,
-                  ref,
-                  label: 'This Quarter',
-                  isSelected: filter.preset == ReportDateRangePreset.thisQuarter,
-                  preset: ReportDateRangePreset.thisQuarter,
-                ),
-              ],
+          padding: AppDimensions.pagePadding,
+          children: [
+            // Filter Chips
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildDateChip(context, ref, label: 'This Month', isSelected: filter.preset == ReportDateRangePreset.thisMonth, preset: ReportDateRangePreset.thisMonth),
+                  const SizedBox(width: 8),
+                  _buildDateChip(context, ref, label: 'This Week', isSelected: filter.preset == ReportDateRangePreset.thisWeek, preset: ReportDateRangePreset.thisWeek),
+                  const SizedBox(width: 8),
+                  _buildDateChip(context, ref, label: 'Fiscal Year', isSelected: filter.preset == ReportDateRangePreset.thisFiscalYear, preset: ReportDateRangePreset.thisFiscalYear),
+                  const SizedBox(width: 8),
+                  _buildDateChip(context, ref, label: 'This Quarter', isSelected: filter.preset == ReportDateRangePreset.thisQuarter, preset: ReportDateRangePreset.thisQuarter),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // Date Interval Indicator
-          Text(
-            'Showing data from ${DateFormatter.format(filter.startDate)} to ${DateFormatter.format(filter.endDate)}',
-            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: AppDimensions.lg),
+            // Date Interval Indicator
+            Text('Showing data from ${DateFormatter.format(filter.startDate)} to ${DateFormatter.format(filter.endDate)}', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+            const SizedBox(height: AppDimensions.lg),
 
-          reportAsync.when(
-            data: (data) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // KPI Grid
-                Row(
-                  children: [
-                    Expanded(
-                      child: KPICard(
-                        title: 'Total Invoiced',
-                        amount: CurrencyFormatter.formatCompact(data.grossSales),
-                        subtitle: '${data.totalInvoices} Invoices',
-                        icon: Icons.receipt_long_rounded,
-                        iconColor: AppColors.primary,
+            reportAsync.when(
+              data:
+                  (data) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // KPI Grid
+                      Row(
+                        children: [
+                          Expanded(child: KPICard(title: 'Total Invoiced', amount: CurrencyFormatter.formatCompact(data.grossSales), subtitle: '${data.totalInvoices} Invoices', icon: Icons.receipt_long_rounded, iconColor: AppColors.primary)),
+                          const SizedBox(width: AppDimensions.md),
+                          Expanded(child: KPICard(title: 'GST Collected', amount: CurrencyFormatter.formatCompact(data.totalTaxCollected), subtitle: 'Tax liability', icon: Icons.account_balance_wallet_outlined, iconColor: AppColors.accent)),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: AppDimensions.md),
-                    Expanded(
-                      child: KPICard(
-                        title: 'GST Collected',
-                        amount: CurrencyFormatter.formatCompact(data.totalTaxCollected),
-                        subtitle: 'Tax liability',
-                        icon: Icons.account_balance_wallet_outlined,
-                        iconColor: AppColors.accent,
+                      const SizedBox(height: AppDimensions.md),
+                      Row(
+                        children: [
+                          Expanded(child: KPICard(title: 'Received', amount: CurrencyFormatter.formatCompact(data.totalCollected), subtitle: '${data.paidInvoices} Fully Paid', icon: Icons.check_circle_outline_rounded, iconColor: AppColors.successDark)),
+                          const SizedBox(width: AppDimensions.md),
+                          Expanded(child: KPICard(title: 'Outstanding', amount: CurrencyFormatter.formatCompact(data.totalOutstanding), subtitle: '${data.overdueInvoices} Overdue', icon: Icons.warning_amber_rounded, iconColor: AppColors.errorDark)),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppDimensions.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: KPICard(
-                        title: 'Received',
-                        amount: CurrencyFormatter.formatCompact(data.totalCollected),
-                        subtitle: '${data.paidInvoices} Fully Paid',
-                        icon: Icons.check_circle_outline_rounded,
-                        iconColor: AppColors.successDark,
+                      const SizedBox(height: AppDimensions.xl),
+
+                      // Interactive Sales Bar Chart
+                      _buildChartSection(data),
+                      const SizedBox(height: AppDimensions.xl),
+
+                      // GST Tax Breakdown Card
+                      _buildTaxBreakdownCard(data),
+                      const SizedBox(height: AppDimensions.xl),
+
+                      // Customer Receivables List
+                      _buildCustomerReceivablesSection(data),
+                      const SizedBox(height: AppDimensions.xl),
+
+                      // Export Button
+                      AppButton(
+                        label: 'Export Invoices to CSV (Excel)',
+                        icon: Icons.download_rounded,
+                        variant: ButtonVariant.outline,
+                        onPressed: () async {
+                          final repo = ref.read(reportsRepositoryProvider);
+                          final csv = await repo.exportReportCsv(filter);
+                          SharePlus.instance.share(ShareParams(text: csv, subject: 'Invoice_Report_${DateFormatter.toIso(DateTime.now())}.csv'));
+                        },
                       ),
-                    ),
-                    const SizedBox(width: AppDimensions.md),
-                    Expanded(
-                      child: KPICard(
-                        title: 'Outstanding',
-                        amount: CurrencyFormatter.formatCompact(data.totalOutstanding),
-                        subtitle: '${data.overdueInvoices} Overdue',
-                        icon: Icons.warning_amber_rounded,
-                        iconColor: AppColors.errorDark,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppDimensions.xl),
-
-                // Interactive Sales Bar Chart
-                _buildChartSection(data),
-                const SizedBox(height: AppDimensions.xl),
-
-                // GST Tax Breakdown Card
-                _buildTaxBreakdownCard(data),
-                const SizedBox(height: AppDimensions.xl),
-
-                // Customer Receivables List
-                _buildCustomerReceivablesSection(data),
-                const SizedBox(height: AppDimensions.xl),
-
-                // Export Button
-                AppButton(
-                  label: 'Export Invoices to CSV (Excel)',
-                  icon: Icons.download_rounded,
-                  variant: ButtonVariant.outline,
-                  onPressed: () async {
-                    final repo = ref.read(reportsRepositoryProvider);
-                    final csv = await repo.exportReportCsv(filter);
-                    SharePlus.instance.share(
-                      ShareParams(
-                        text: csv,
-                        subject: 'Invoice_Report_${DateFormatter.toIso(DateTime.now())}.csv',
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 40),
-              ],
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+              loading: () => const Column(children: [ShimmerLoader(width: double.infinity, height: 110), SizedBox(height: 16), ShimmerLoader(width: double.infinity, height: 220)]),
+              error: (err, _) => Center(child: Text('Error loading report: $err')),
             ),
-            loading: () => const Column(
-              children: [
-                ShimmerLoader(width: double.infinity, height: 110),
-                SizedBox(height: 16),
-                ShimmerLoader(width: double.infinity, height: 220),
-              ],
-            ),
-            error: (err, _) => Center(child: Text('Error loading report: $err')),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-  Widget _buildDateChip(
-    BuildContext context,
-    WidgetRef ref, {
-    required String label,
-    required bool isSelected,
-    required ReportDateRangePreset preset,
-  }) {
+  Widget _buildDateChip(BuildContext context, WidgetRef ref, {required String label, required bool isSelected, required ReportDateRangePreset preset}) {
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => ref.read(reportFilterProvider.notifier).setPreset(preset),
       selectedColor: AppColors.primaryContainer,
-      labelStyle: TextStyle(
-        color: isSelected ? AppColors.primary : AppColors.textSecondary,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-        fontSize: 13,
-      ),
+      labelStyle: TextStyle(color: isSelected ? AppColors.primary : AppColors.textSecondary, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400, fontSize: 13),
       backgroundColor: AppColors.surface,
-      side: BorderSide(
-        color: isSelected ? AppColors.primaryLight : AppColors.border,
-      ),
+      side: BorderSide(color: isSelected ? AppColors.primaryLight : AppColors.border),
     );
   }
 
@@ -243,13 +159,7 @@ class ReportsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Monthly Revenue Trend', style: AppTypography.headingSmall),
-                Text('Last 5 Months', style: AppTypography.bodySmall),
-              ],
-            ),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Monthly Revenue Trend', style: AppTypography.headingSmall), Text('Last 5 Months', style: AppTypography.bodySmall)]),
             const SizedBox(height: 24),
             SizedBox(
               height: 180,
@@ -261,10 +171,7 @@ class ReportsScreen extends ConsumerWidget {
                     touchTooltipData: BarTouchTooltipData(
                       getTooltipColor: (_) => AppColors.darkSurface,
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        return BarTooltipItem(
-                          '₹${(rod.toY / 1000).toStringAsFixed(0)}k',
-                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                        );
+                        return BarTooltipItem('₹${(rod.toY / 1000).toStringAsFixed(0)}k', const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12));
                       },
                     ),
                   ),
@@ -279,13 +186,7 @@ class ReportsScreen extends ConsumerWidget {
                         getTitlesWidget: (value, meta) {
                           final idx = value.toInt();
                           if (idx >= 0 && idx < data.salesTrend.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                data.salesTrend[idx].label,
-                                style: AppTypography.labelSmall,
-                              ),
-                            );
+                            return Padding(padding: const EdgeInsets.only(top: 8.0), child: Text(data.salesTrend[idx].label, style: AppTypography.labelSmall));
                           }
                           return const SizedBox.shrink();
                         },
@@ -294,21 +195,12 @@ class ReportsScreen extends ConsumerWidget {
                   ),
                   gridData: const FlGridData(show: false),
                   borderData: FlBorderData(show: false),
-                  barGroups: data.salesTrend.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final pt = entry.value;
-                    return BarChartGroupData(
-                      x: idx,
-                      barRods: [
-                        BarChartRodData(
-                          toY: pt.sales,
-                          gradient: AppColors.primaryGradient,
-                          width: 24,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                        ),
-                      ],
-                    );
-                  }).toList(),
+                  barGroups:
+                      data.salesTrend.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final pt = entry.value;
+                        return BarChartGroupData(x: idx, barRods: [BarChartRodData(toY: pt.sales, gradient: AppColors.primaryGradient, width: 24, borderRadius: const BorderRadius.vertical(top: Radius.circular(6)))]);
+                      }).toList(),
                 ),
               ),
             ),
@@ -333,12 +225,7 @@ class ReportsScreen extends ConsumerWidget {
             _buildTaxRow('SGST (State Tax)', CurrencyFormatter.format(data.totalSgst)),
             _buildTaxRow('IGST (Integrated Tax)', CurrencyFormatter.format(data.totalIgst)),
             const Divider(height: 16),
-            _buildTaxRow(
-              'Total GST Liability',
-              CurrencyFormatter.format(data.totalTaxCollected),
-              isBold: true,
-              color: AppColors.primary,
-            ),
+            _buildTaxRow('Total GST Liability', CurrencyFormatter.format(data.totalTaxCollected), isBold: true, color: AppColors.primary),
           ],
         ),
       ),
@@ -348,25 +235,7 @@ class ReportsScreen extends ConsumerWidget {
   Widget _buildTaxRow(String label, String value, {bool isBold = false, Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: AppTypography.bodyMedium.copyWith(
-              fontWeight: isBold ? FontWeight.w700 : FontWeight.w400,
-            ),
-          ),
-          Text(
-            value,
-            style: AppTypography.currencyMedium.copyWith(
-              fontSize: isBold ? 16 : 14,
-              fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: AppTypography.bodyMedium.copyWith(fontWeight: isBold ? FontWeight.w700 : FontWeight.w400)), Text(value, style: AppTypography.currencyMedium.copyWith(fontSize: isBold ? 16 : 14, fontWeight: isBold ? FontWeight.w800 : FontWeight.w600, color: color))]),
     );
   }
 
@@ -385,31 +254,12 @@ class ReportsScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(c.companyName ?? c.customerName, style: AppTypography.labelLarge),
-                          Text('Billed: ${CurrencyFormatter.format(c.totalSales)}', style: AppTypography.bodySmall),
-                        ],
-                      ),
-                    ),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(c.companyName ?? c.customerName, style: AppTypography.labelLarge), Text('Billed: ${CurrencyFormatter.format(c.totalSales)}', style: AppTypography.bodySmall)])),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          CurrencyFormatter.format(c.outstandingAmount),
-                          style: AppTypography.currencyMedium.copyWith(
-                            fontSize: 14,
-                            color: c.outstandingAmount > 0 ? AppColors.error : AppColors.successDark,
-                          ),
-                        ),
-                        Text(
-                          c.outstandingAmount > 0 ? '${c.overdueInvoicesCount} overdue' : 'Settled',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: c.outstandingAmount > 0 ? AppColors.errorDark : AppColors.successDark,
-                          ),
-                        ),
+                        Text(CurrencyFormatter.format(c.outstandingAmount), style: AppTypography.currencyMedium.copyWith(fontSize: 14, color: c.outstandingAmount > 0 ? AppColors.error : AppColors.successDark)),
+                        Text(c.outstandingAmount > 0 ? '${c.overdueInvoicesCount} overdue' : 'Settled', style: AppTypography.labelSmall.copyWith(color: c.outstandingAmount > 0 ? AppColors.errorDark : AppColors.successDark)),
                       ],
                     ),
                   ],

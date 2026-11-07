@@ -21,6 +21,11 @@ class BusinessModel {
   final String invoicePrefix;
   final int nextInvoiceNumber;
   final String currency;
+  final bool isActive;
+  final bool isDeleted;
+
+  // Convenience getter for isDelete
+  bool get isDelete => isDeleted;
 
   const BusinessModel({
     required this.id,
@@ -45,6 +50,8 @@ class BusinessModel {
     this.invoicePrefix = 'INV-',
     this.nextInvoiceNumber = 1001,
     this.currency = 'INR',
+    this.isActive = true,
+    this.isDeleted = false,
   });
 
   factory BusinessModel.fromJson(Map<String, dynamic> json) {
@@ -73,6 +80,8 @@ class BusinessModel {
       invoicePrefix: (json['invoice_prefix'] as String?) ?? 'INV-',
       nextInvoiceNumber: (json['next_invoice_number'] as num?)?.toInt() ?? 1001,
       currency: (json['currency'] as String?) ?? 'INR',
+      isActive: (json['is_active'] as bool?) ?? true,
+      isDeleted: (json['is_deleted'] as bool?) ?? false,
     );
   }
 
@@ -100,6 +109,8 @@ class BusinessModel {
       'invoice_prefix': invoicePrefix,
       'next_invoice_number': nextInvoiceNumber,
       'currency': currency,
+      'is_active': isActive,
+      'is_deleted': isDeleted,
     };
   }
 
@@ -126,6 +137,8 @@ class BusinessModel {
     String? invoicePrefix,
     int? nextInvoiceNumber,
     String? currency,
+    bool? isActive,
+    bool? isDeleted,
   }) {
     return BusinessModel(
       id: id ?? this.id,
@@ -150,6 +163,8 @@ class BusinessModel {
       invoicePrefix: invoicePrefix ?? this.invoicePrefix,
       nextInvoiceNumber: nextInvoiceNumber ?? this.nextInvoiceNumber,
       currency: currency ?? this.currency,
+      isActive: isActive ?? this.isActive,
+      isDeleted: isDeleted ?? this.isDeleted,
     );
   }
 }

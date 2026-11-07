@@ -111,6 +111,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const CreateInvoiceWizardScreen(),
       ),
+      GoRoute(
+        path: '/invoices/create',
+        parentNavigatorKey: rootNavigatorKey,
+        redirect: (context, state) => '/create-invoice',
+      ),
 
       // Invoice Detail Screen
       GoRoute(

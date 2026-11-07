@@ -14,6 +14,8 @@ import '../../../invoices/data/models/invoice_model.dart';
 import '../../../invoices/data/repositories/invoice_repository.dart';
 import '../../data/models/customer_model.dart';
 import '../../data/repositories/customer_repository.dart';
+import 'customer_form_screen.dart';
+import 'customer_list_screen.dart';
 
 final customerDetailProvider = FutureProvider.autoDispose.family<CustomerModel, int>((ref, id) async {
   final repo = ref.watch(customerRepositoryProvider);
@@ -41,6 +43,28 @@ class CustomerDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Customer Details'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit Customer',
+            onPressed: () async {
+              if (customerAsync.hasValue) {
+                final updated = await CustomerFormBottomSheet.show(
+                  context,
+                  initialCustomer: customerAsync.value,
+                );
+                if (updated != null && context.mounted) {
+                  ref.invalidate(customerDetailProvider(customerId));
+                  ref.invalidate(customerListProvider);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Customer ${updated.name} updated successfully!'),
+                      backgroundColor: AppColors.successDark,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
             tooltip: 'Share Account Statement',

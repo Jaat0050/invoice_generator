@@ -4,6 +4,7 @@ class TemplateConfigModel {
   final bool showLogo;
   final bool showGstin;
   final bool showCustomerGstin;
+  final bool showSupplyDetails;
   final bool showHsnSac;
   final bool showBankDetails;
   final bool showUpiQr;
@@ -17,6 +18,7 @@ class TemplateConfigModel {
     this.showLogo = true,
     this.showGstin = true,
     this.showCustomerGstin = true,
+    this.showSupplyDetails = true,
     this.showHsnSac = true,
     this.showBankDetails = true,
     this.showUpiQr = true,
@@ -32,6 +34,7 @@ class TemplateConfigModel {
       showLogo: (json['show_logo'] as bool?) ?? true,
       showGstin: (json['show_gstin'] as bool?) ?? true,
       showCustomerGstin: (json['show_customer_gstin'] as bool?) ?? true,
+      showSupplyDetails: (json['show_supply_details'] as bool?) ?? true,
       showHsnSac: (json['show_hsn_sac'] as bool?) ?? true,
       showBankDetails: (json['show_bank_details'] as bool?) ?? true,
       showUpiQr: (json['show_upi_qr'] as bool?) ?? true,
@@ -48,6 +51,7 @@ class TemplateConfigModel {
       'show_logo': showLogo,
       'show_gstin': showGstin,
       'show_customer_gstin': showCustomerGstin,
+      'show_supply_details': showSupplyDetails,
       'show_hsn_sac': showHsnSac,
       'show_bank_details': showBankDetails,
       'show_upi_qr': showUpiQr,
@@ -63,6 +67,7 @@ class TemplateConfigModel {
     bool? showLogo,
     bool? showGstin,
     bool? showCustomerGstin,
+    bool? showSupplyDetails,
     bool? showHsnSac,
     bool? showBankDetails,
     bool? showUpiQr,
@@ -76,6 +81,7 @@ class TemplateConfigModel {
       showLogo: showLogo ?? this.showLogo,
       showGstin: showGstin ?? this.showGstin,
       showCustomerGstin: showCustomerGstin ?? this.showCustomerGstin,
+      showSupplyDetails: showSupplyDetails ?? this.showSupplyDetails,
       showHsnSac: showHsnSac ?? this.showHsnSac,
       showBankDetails: showBankDetails ?? this.showBankDetails,
       showUpiQr: showUpiQr ?? this.showUpiQr,

@@ -4,7 +4,7 @@ class ItemModel {
   final String name;
   final String? sku;
   final String? hsnSac;
-  final String unit; // 'PCS', 'NOS', 'HRS', 'BOX', 'KGS', 'MTR'
+  final String unit; // 'PCS', 'NOS', 'HRS', 'BOX', 'KGS', 'MTR', 'PER', 'PAIR'
   final double rate;
   final double taxRate; // 0, 5, 12, 18, 28
   final String itemType; // 'product' or 'service'

@@ -144,7 +144,16 @@ class ItemListScreen extends ConsumerWidget {
                           child: DropdownButtonFormField<String>(
                             value: unit,
                             decoration: const InputDecoration(labelText: 'Unit'),
-                            items: const [DropdownMenuItem(value: 'PCS', child: Text('PCS')), DropdownMenuItem(value: 'NOS', child: Text('NOS')), DropdownMenuItem(value: 'HRS', child: Text('HRS')), DropdownMenuItem(value: 'BOX', child: Text('BOX')), DropdownMenuItem(value: 'KGS', child: Text('KGS')), DropdownMenuItem(value: 'MTR', child: Text('MTR'))],
+                            items: const [
+                              DropdownMenuItem(value: 'PCS', child: Text('PCS')),
+                              DropdownMenuItem(value: 'NOS', child: Text('NOS')),
+                              DropdownMenuItem(value: 'HRS', child: Text('HRS')),
+                              DropdownMenuItem(value: 'BOX', child: Text('BOX')),
+                              DropdownMenuItem(value: 'KGS', child: Text('KGS')),
+                              DropdownMenuItem(value: 'MTR', child: Text('MTR')),
+                              DropdownMenuItem(value: 'PER', child: Text('PER')),
+                              DropdownMenuItem(value: 'PAIR', child: Text('PAIR')),
+                            ],
                             onChanged: (v) {
                               if (v != null) setModalState(() => unit = v);
                             },
@@ -156,8 +165,19 @@ class ItemListScreen extends ConsumerWidget {
                     AppButton(
                       label: 'Save Item',
                       onPressed: () async {
-                        if (nameCtrl.text.trim().isEmpty) return;
+                        if (nameCtrl.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Please enter an item or service name.')),
+                          );
+                          return;
+                        }
                         final rate = double.tryParse(rateCtrl.text) ?? 0.0;
+                        if (rate < 0) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Rate cannot be negative.')),
+                          );
+                          return;
+                        }
 
                         final repo = ref.read(itemRepositoryProvider);
                         await repo.addItem(ItemModel(id: 0, businessId: 1, name: nameCtrl.text.trim(), hsnSac: hsnCtrl.text.trim().isEmpty ? null : hsnCtrl.text.trim(), rate: rate, unit: unit, taxRate: taxRate, itemType: itemType));

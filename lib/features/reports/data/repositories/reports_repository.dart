@@ -138,12 +138,12 @@ class ReportsRepository {
 
     for (final inv in invoices) {
       final line = [
-        inv.invoiceNumber,
+        _escapeCsv(inv.invoiceNumber),
         DateFormatter.toIso(inv.invoiceDate),
         DateFormatter.toIso(inv.dueDate),
-        '"${inv.customer.name}"',
-        '"${inv.customer.companyName ?? ""}"',
-        inv.customer.gstin ?? '',
+        _escapeCsv(inv.customer.name),
+        _escapeCsv(inv.customer.companyName ?? ''),
+        _escapeCsv(inv.customer.gstin ?? ''),
         inv.taxableAmount.toStringAsFixed(2),
         inv.totalCgst.toStringAsFixed(2),
         inv.totalSgst.toStringAsFixed(2),
@@ -157,6 +157,11 @@ class ReportsRepository {
     }
 
     return buffer.toString();
+  }
+
+  static String _escapeCsv(String val) {
+    final escaped = val.replaceAll('"', '""');
+    return '"$escaped"';
   }
 
   /// Generates a human-readable text summary for sharing

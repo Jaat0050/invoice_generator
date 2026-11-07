@@ -84,11 +84,15 @@ class InvoiceRepository {
           'invoice_number': invoice.invoiceNumber,
           'reference_number': invoice.referenceNumber,
           'po_number': invoice.poNumber,
+          'invoice_title': invoice.invoiceTitle,
+          'is_gst': invoice.isGst,
           'invoice_date': invoice.invoiceDate.toIso8601String(),
-          'due_date': invoice.dueDate.toIso8601String(),
+          'due_date': invoice.dueDate?.toIso8601String(),
           'customer_id': invoice.customer.id > 0 ? invoice.customer.id : null,
           'customer_snapshot': invoice.customer.toJson(),
           'gst_type': invoice.gstType.name,
+          'place_of_supply': invoice.placeOfSupply,
+          'place_of_supply_state_code': invoice.placeOfSupplyStateCode,
           'subtotal': invoice.subtotal,
           'total_discount': invoice.totalDiscount,
           'taxable_amount': invoice.taxableAmount,
@@ -192,6 +196,33 @@ class InvoiceRepository {
     }
   }
 
+  Future<void> deleteInvoice(int id) async {
+    final sb = _supabase;
+    _assertAuthenticated(sb);
+
+    try {
+      // 1. Delete associated line items
+      try {
+        await sb!.from('invoice_items').delete().eq('invoice_id', id);
+      } catch (e) {
+        debugPrint('Notice deleting invoice items: $e');
+      }
+
+      // 2. Delete associated payments
+      try {
+        await sb!.from('payments').delete().eq('invoice_id', id);
+      } catch (e) {
+        debugPrint('Notice deleting invoice payments: $e');
+      }
+
+      // 3. Delete the invoice row
+      await sb!.from('invoices').delete().eq('id', id);
+    } catch (e) {
+      debugPrint('Supabase deleteInvoice error: $e');
+      rethrow;
+    }
+  }
+
   Future<DashboardStats> getDashboardStats() async {
     final invoices = await getInvoices();
     double totalSales = 0.0;
@@ -266,17 +297,24 @@ class InvoiceRepository {
     final rawPayments = (item['payments'] as List<dynamic>?) ?? [];
     final payments = rawPayments.map((p) => PaymentModel.fromJson(p)).toList();
 
+    final isGst = (item['is_gst'] as bool?) ?? true;
+    final defaultTitle = isGst ? 'TAX INVOICE' : 'BILL OF SUPPLY';
+
     return InvoiceModel(
       id: item['id'] is int ? item['id'] as int : int.tryParse(item['id'].toString()) ?? 1,
       businessId: 1,
       invoiceNumber: item['invoice_number'] as String,
       referenceNumber: item['reference_number'] as String?,
       poNumber: item['po_number'] as String?,
+      invoiceTitle: (item['invoice_title'] as String?) ?? defaultTitle,
+      isGst: isGst,
       invoiceDate: DateTime.tryParse(item['invoice_date'] as String? ?? '') ?? DateTime.now(),
-      dueDate: DateTime.tryParse(item['due_date'] as String? ?? '') ?? DateTime.now(),
+      dueDate: item['due_date'] != null ? DateTime.tryParse(item['due_date'] as String) : null,
       customer: customer,
       items: items,
-      gstType: item['gst_type'] == 'interState' ? GstType.interState : GstType.intraState,
+      gstType: item['gst_type'] == 'interState' || item['gst_type'] == 'inter_state' ? GstType.interState : GstType.intraState,
+      placeOfSupply: item['place_of_supply'] as String?,
+      placeOfSupplyStateCode: item['place_of_supply_state_code'] as String?,
       subtotal: (item['subtotal'] as num?)?.toDouble() ?? 0.0,
       totalDiscount: (item['total_discount'] as num?)?.toDouble() ?? 0.0,
       taxableAmount: (item['taxable_amount'] as num?)?.toDouble() ?? 0.0,

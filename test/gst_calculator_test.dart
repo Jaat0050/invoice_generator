@@ -67,6 +67,42 @@ void main() {
       expect((totals.roundOff * 100).round() / 100, 0.18);
       expect(totals.balanceDue, 14899.0);
     });
+
+    test('Calculates Non-GST Line Item with 0% tax even if taxRate is passed', () {
+      final calc = GstCalculator.calculateLineItem(
+        quantity: 3,
+        rate: 1000,
+        taxRate: 18,
+        supplyType: GstSupplyType.intraState,
+        isGst: false,
+      );
+
+      expect(calc.taxableAmount, 3000.0);
+      expect(calc.cgstAmount, 0.0);
+      expect(calc.sgstAmount, 0.0);
+      expect(calc.igstAmount, 0.0);
+      expect(calc.taxRate, 0.0);
+      expect(calc.totalAmount, 3000.0);
+    });
+
+    test('determineSupplyType handles None / N/A / empty gracefully', () {
+      expect(
+        GstCalculator.determineSupplyType(businessState: 'Maharashtra', customerBillingState: 'None'),
+        GstSupplyType.intraState,
+      );
+      expect(
+        GstCalculator.determineSupplyType(businessState: 'Maharashtra', customerBillingState: 'None / Not Applicable'),
+        GstSupplyType.intraState,
+      );
+      expect(
+        GstCalculator.determineSupplyType(businessState: 'Maharashtra', customerBillingState: 'Karnataka'),
+        GstSupplyType.interState,
+      );
+      expect(
+        GstCalculator.determineSupplyType(businessState: 'Maharashtra', customerBillingState: 'Maharashtra'),
+        GstSupplyType.intraState,
+      );
+    });
   });
 
   group('CurrencyFormatter & NumberToWords Tests', () {
@@ -136,6 +172,56 @@ void main() {
         totalSgst: 22491.0,
         grandTotal: 294882.0,
         balanceDue: 294882.0,
+      );
+
+      final bytes = await PdfInvoiceGenerator.generatePdf(
+        invoice: invoice,
+        business: business,
+        config: const TemplateConfigModel(),
+      );
+
+      expect(bytes, isNotNull);
+      expect(bytes.isNotEmpty, true);
+    });
+
+    test('Generates valid PDF for Non-GST invoice with custom title, no due date, and no POS', () async {
+      const business = BusinessModel(
+        id: 1,
+        name: 'Apex Solutions Pvt Ltd',
+        phone: '+91 98765 43210',
+        email: 'billing@apex.com',
+      );
+
+      final invoice = InvoiceModel(
+        id: 2,
+        businessId: 1,
+        invoiceNumber: 'BOS-1002',
+        invoiceTitle: 'PROFORMA INVOICE',
+        isGst: false,
+        invoiceDate: DateTime(2026, 9, 10),
+        dueDate: null, // Due date None
+        placeOfSupply: null, // POS None
+        customer: const CustomerModel(
+          id: 2,
+          businessId: 1,
+          name: 'Priya Sharma',
+          phone: '+91 98765 00000',
+          billingState: 'Delhi',
+        ),
+        items: const [
+          InvoiceItemModel(
+            description: 'Consulting Services',
+            quantity: 5,
+            rate: 2000.0,
+            taxableAmount: 10000.0,
+            taxRate: 0.0,
+            totalAmount: 10000.0,
+          ),
+        ],
+        subtotal: 10000.0,
+        taxableAmount: 10000.0,
+        grandTotal: 10000.0,
+        balanceDue: 10000.0,
       );
 
       final bytes = await PdfInvoiceGenerator.generatePdf(

@@ -1,4 +1,7 @@
-import 'dart:typed_data';
+import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -11,6 +14,56 @@ import 'package:invoice_generator/features/templates/data/models/template_config
 
 class PdfInvoiceGenerator {
   PdfInvoiceGenerator._();
+
+  static final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 6),
+      receiveTimeout: const Duration(seconds: 6),
+    ),
+  );
+
+  static Future<Uint8List?> _fetchImageBytes(String? url) async {
+    if (url == null || url.trim().isEmpty) return null;
+
+    final cleanUrl = url.trim();
+
+    try {
+      // 1. Data URI (Base64)
+      if (cleanUrl.startsWith('data:image')) {
+        final commaIdx = cleanUrl.indexOf(',');
+        final base64Data = commaIdx != -1 ? cleanUrl.substring(commaIdx + 1) : cleanUrl;
+        return base64Decode(base64Data);
+      }
+
+      // 2. Local File path
+      if (!kIsWeb && (cleanUrl.startsWith('/') || cleanUrl.startsWith('file://'))) {
+        final filePath = cleanUrl.replaceFirst('file://', '');
+        final file = File(filePath);
+        if (await file.exists()) {
+          return await file.readAsBytes();
+        }
+      }
+
+      // 3. Raw Base64 string without data:image prefix
+      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        try {
+          return base64Decode(cleanUrl);
+        } catch (_) {}
+      }
+
+      // 4. Remote HTTP / HTTPS URL
+      final response = await _dio.get<List<int>>(
+        cleanUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      if (response.data != null) {
+        return Uint8List.fromList(response.data!);
+      }
+    } catch (e) {
+      debugPrint('PdfInvoiceGenerator failed to load image from "$url": $e');
+    }
+    return null;
+  }
 
   static Future<Uint8List> generatePdf({
     required InvoiceModel invoice,
@@ -28,6 +81,17 @@ class PdfInvoiceGenerator {
     } catch (_) {
       regularFont = pw.Font.helvetica();
       boldFont = pw.Font.helveticaBold();
+    }
+
+    // Load logo and signature images if configured
+    Uint8List? logoBytes;
+    if (config.showLogo && business.logoUrl != null && business.logoUrl!.isNotEmpty) {
+      logoBytes = await _fetchImageBytes(business.logoUrl);
+    }
+
+    Uint8List? signatureBytes;
+    if (config.showSignature && business.signatureUrl != null && business.signatureUrl!.isNotEmpty) {
+      signatureBytes = await _fetchImageBytes(business.signatureUrl);
     }
 
     final theme = pw.ThemeData.withFont(
@@ -51,7 +115,7 @@ class PdfInvoiceGenerator {
         build: (pw.Context context) {
           return [
             // 1. Header Section
-            _buildHeader(business, invoice, primaryPdfColor, darkNeutral, secondaryText, config),
+            _buildHeader(business, invoice, primaryPdfColor, darkNeutral, secondaryText, config, logoBytes: logoBytes),
             pw.SizedBox(height: 20),
 
             // 2. Customer "Billed To" & Invoice Meta Details
@@ -73,7 +137,7 @@ class PdfInvoiceGenerator {
             ],
 
             // 6. Bank Details, UPI QR Code & Signature
-            _buildFooterPaymentAndSignature(business, invoice, primaryPdfColor, darkNeutral, secondaryText, borderSubtle, config),
+            _buildFooterPaymentAndSignature(business, invoice, primaryPdfColor, darkNeutral, secondaryText, borderSubtle, config, signatureBytes: signatureBytes),
           ];
         },
       ),
@@ -88,50 +152,69 @@ class PdfInvoiceGenerator {
     PdfColor primaryColor,
     PdfColor darkNeutral,
     PdfColor secondaryText,
-    TemplateConfigModel config,
-  ) {
+    TemplateConfigModel config, {
+    Uint8List? logoBytes,
+  }) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         pw.Expanded(
           flex: 6,
-          child: pw.Column(
+          child: pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text(
-                business.name,
-                style: pw.TextStyle(
-                  fontSize: 20,
-                  fontWeight: pw.FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-              if (business.legalName != null && business.legalName != business.name) ...[
-                pw.SizedBox(height: 2),
-                pw.Text(
-                  business.legalName!,
-                  style: pw.TextStyle(fontSize: 10, color: secondaryText),
+              if (logoBytes != null) ...[
+                pw.Container(
+                  width: 48,
+                  height: 48,
+                  margin: const pw.EdgeInsets.only(right: 12),
+                  child: pw.Image(
+                    pw.MemoryImage(logoBytes),
+                    fit: pw.BoxFit.contain,
+                  ),
                 ),
               ],
-              pw.SizedBox(height: 4),
-              if (business.address != null)
-                pw.Text(
-                  '${business.address!}, ${business.city ?? ""}, ${business.state} - ${business.pincode ?? ""}',
-                  style: pw.TextStyle(fontSize: 9, color: secondaryText),
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      business.name,
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: primaryColor,
+                      ),
+                    ),
+                    if (business.legalName != null && business.legalName != business.name) ...[
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        business.legalName!,
+                        style: pw.TextStyle(fontSize: 9, color: secondaryText),
+                      ),
+                    ],
+                    pw.SizedBox(height: 4),
+                    if (business.address != null)
+                      pw.Text(
+                        '${business.address!}, ${business.city ?? ""}, ${business.state} - ${business.pincode ?? ""}',
+                        style: pw.TextStyle(fontSize: 8.5, color: secondaryText),
+                      ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      'Phone: ${business.phone ?? ""} | Email: ${business.email ?? ""}',
+                      style: pw.TextStyle(fontSize: 8.5, color: secondaryText),
+                    ),
+                    if (config.showGstin && business.gstin != null && invoice.isGst) ...[
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'GSTIN: ${business.gstin!} | PAN: ${business.pan ?? "N/A"}',
+                        style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: darkNeutral),
+                      ),
+                    ],
+                  ],
                 ),
-              pw.SizedBox(height: 2),
-              pw.Text(
-                'Phone: ${business.phone ?? ""} | Email: ${business.email ?? ""}',
-                style: pw.TextStyle(fontSize: 9, color: secondaryText),
               ),
-              if (config.showGstin && business.gstin != null) ...[
-                pw.SizedBox(height: 2),
-                pw.Text(
-                  'GSTIN: ${business.gstin!} | PAN: ${business.pan ?? "N/A"}',
-                  style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: darkNeutral),
-                ),
-              ],
             ],
           ),
         ),
@@ -147,9 +230,9 @@ class PdfInvoiceGenerator {
                   borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
                 ),
                 child: pw.Text(
-                  'TAX INVOICE',
+                  invoice.invoiceTitle.toUpperCase(),
                   style: pw.TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.white,
                   ),
@@ -169,10 +252,12 @@ class PdfInvoiceGenerator {
                 'Date: ${DateFormatter.format(invoice.invoiceDate)}',
                 style: pw.TextStyle(fontSize: 9, color: secondaryText),
               ),
-              pw.Text(
-                'Due Date: ${DateFormatter.format(invoice.dueDate)}',
-                style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: primaryColor),
-              ),
+              if (invoice.dueDate != null) ...[
+                pw.Text(
+                  'Due Date: ${DateFormatter.format(invoice.dueDate!)}',
+                  style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: primaryColor),
+                ),
+              ],
               if (invoice.referenceNumber != null) ...[
                 pw.Text(
                   'Ref/PO: ${invoice.referenceNumber}',
@@ -195,6 +280,12 @@ class PdfInvoiceGenerator {
     PdfColor borderSubtle,
     TemplateConfigModel config,
   ) {
+    final pos = invoice.placeOfSupply ?? invoice.customer.billingState;
+    final isPosNone = pos.trim().isEmpty ||
+        pos.trim().toLowerCase() == 'none' ||
+        pos.trim().toLowerCase() == 'n/a' ||
+        pos.trim().toLowerCase() == 'not applicable';
+
     return pw.Container(
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
@@ -241,7 +332,7 @@ class PdfInvoiceGenerator {
                   'State: ${invoice.customer.billingState} (Code: ${invoice.customer.billingStateCode ?? ""})',
                   style: pw.TextStyle(fontSize: 9, color: secondaryText),
                 ),
-                if (config.showCustomerGstin && invoice.customer.gstin != null) ...[
+                if (config.showCustomerGstin && invoice.customer.gstin != null && invoice.isGst) ...[
                   pw.SizedBox(height: 2),
                   pw.Text(
                     'GSTIN: ${invoice.customer.gstin!}',
@@ -251,38 +342,43 @@ class PdfInvoiceGenerator {
               ],
             ),
           ),
-          pw.SizedBox(width: 16),
-          // Supply Place & Tax Mode
-          pw.Expanded(
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'PLACE OF SUPPLY & TAX DETAILS:',
-                  style: pw.TextStyle(
-                    fontSize: 8,
-                    fontWeight: pw.FontWeight.bold,
-                    color: primaryColor,
+          if (config.showSupplyDetails) ...[
+            pw.SizedBox(width: 16),
+            // Supply Place & Tax Mode
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'SUPPLY & DOCUMENT DETAILS:',
+                    style: pw.TextStyle(
+                      fontSize: 8,
+                      fontWeight: pw.FontWeight.bold,
+                      color: primaryColor,
+                    ),
                   ),
-                ),
-                pw.SizedBox(height: 3),
-                pw.Text(
-                  'Place of Supply: ${invoice.customer.billingState}',
-                  style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: darkNeutral),
-                ),
-                pw.Text(
-                  invoice.gstType == GstType.intraState
-                      ? 'Tax Type: Intra-State (CGST + SGST)'
-                      : 'Tax Type: Inter-State (IGST)',
-                  style: pw.TextStyle(fontSize: 9, color: secondaryText),
-                ),
-                pw.Text(
-                  'Reverse Charge: NO',
-                  style: pw.TextStyle(fontSize: 9, color: secondaryText),
-                ),
-              ],
+                  pw.SizedBox(height: 3),
+                  pw.Text(
+                    isPosNone ? 'Place of Supply: Not Applicable' : 'Place of Supply: $pos',
+                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: darkNeutral),
+                  ),
+                  pw.Text(
+                    invoice.isGst
+                        ? (invoice.gstType == GstType.intraState
+                            ? 'Tax Type: Intra-State (CGST + SGST)'
+                            : 'Tax Type: Inter-State (IGST)')
+                        : 'Tax Type: Non-GST Supply / Bill of Supply',
+                    style: pw.TextStyle(fontSize: 9, color: secondaryText),
+                  ),
+                  if (invoice.isGst)
+                    pw.Text(
+                      'Reverse Charge: NO',
+                      style: pw.TextStyle(fontSize: 9, color: secondaryText),
+                    ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -296,6 +392,8 @@ class PdfInvoiceGenerator {
     PdfColor lightBg,
     TemplateConfigModel config,
   ) {
+    final isGst = invoice.isGst;
+
     final headers = [
       '#',
       'Item Description',
@@ -303,24 +401,34 @@ class PdfInvoiceGenerator {
       'Qty',
       'Rate (Rs.)',
       'Disc',
-      'Taxable (Rs.)',
-      if (invoice.gstType == GstType.intraState) 'CGST / SGST' else 'IGST',
+      if (isGst) 'Taxable (Rs.)',
+      if (isGst) (invoice.gstType == GstType.intraState ? 'CGST / SGST' : 'IGST'),
       'Total (Rs.)',
     ];
 
     return pw.Table(
       border: pw.TableBorder.all(color: borderSubtle, width: 0.5),
-      columnWidths: {
-        0: const pw.FixedColumnWidth(20),
-        1: const pw.FlexColumnWidth(3.5),
-        if (config.showHsnSac) 2: const pw.FixedColumnWidth(48),
-        3: const pw.FixedColumnWidth(28),
-        4: const pw.FixedColumnWidth(54),
-        5: const pw.FixedColumnWidth(36),
-        6: const pw.FixedColumnWidth(56),
-        7: const pw.FixedColumnWidth(60),
-        8: const pw.FixedColumnWidth(62),
-      },
+      columnWidths: isGst
+          ? {
+              0: const pw.FixedColumnWidth(20),
+              1: const pw.FlexColumnWidth(3.5),
+              if (config.showHsnSac) 2: const pw.FixedColumnWidth(48),
+              3: const pw.FixedColumnWidth(28),
+              4: const pw.FixedColumnWidth(54),
+              5: const pw.FixedColumnWidth(36),
+              6: const pw.FixedColumnWidth(56),
+              7: const pw.FixedColumnWidth(60),
+              8: const pw.FixedColumnWidth(62),
+            }
+          : {
+              0: const pw.FixedColumnWidth(24),
+              1: const pw.FlexColumnWidth(4.0),
+              if (config.showHsnSac) 2: const pw.FixedColumnWidth(55),
+              3: const pw.FixedColumnWidth(35),
+              4: const pw.FixedColumnWidth(65),
+              5: const pw.FixedColumnWidth(45),
+              6: const pw.FixedColumnWidth(75),
+            },
       children: [
         // Header Row
         pw.TableRow(
@@ -347,11 +455,13 @@ class PdfInvoiceGenerator {
           final item = entry.value;
 
           String taxStr = '';
-          if (invoice.gstType == GstType.intraState) {
-            final rateHalf = (item.taxRate / 2).toStringAsFixed(1).replaceAll('.0', '');
-            taxStr = '$rateHalf% + $rateHalf%';
-          } else {
-            taxStr = '${item.taxRate.toInt()}%';
+          if (isGst) {
+            if (invoice.gstType == GstType.intraState) {
+              final rateHalf = (item.taxRate / 2).toStringAsFixed(1).replaceAll('.0', '');
+              taxStr = '$rateHalf% + $rateHalf%';
+            } else {
+              taxStr = '${item.taxRate.toInt()}%';
+            }
           }
 
           return pw.TableRow(
@@ -385,14 +495,16 @@ class PdfInvoiceGenerator {
                   textAlign: pw.TextAlign.right,
                 ),
               ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(4),
-                child: pw.Text(CurrencyFormatter.format(item.taxableAmount, showSymbol: false), style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.right),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(4),
-                child: pw.Text(taxStr, style: const pw.TextStyle(fontSize: 7.5), textAlign: pw.TextAlign.right),
-              ),
+              if (isGst)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(CurrencyFormatter.format(item.taxableAmount, showSymbol: false), style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.right),
+                ),
+              if (isGst)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(taxStr, style: const pw.TextStyle(fontSize: 7.5), textAlign: pw.TextAlign.right),
+                ),
               pw.Padding(
                 padding: const pw.EdgeInsets.all(4),
                 child: pw.Text(CurrencyFormatter.format(item.totalAmount, showSymbol: false), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.right),
@@ -453,14 +565,20 @@ class PdfInvoiceGenerator {
           flex: 4,
           child: pw.Column(
             children: [
-              _buildSummaryPdfRow('Taxable Amount', 'Rs. ${CurrencyFormatter.format(invoice.taxableAmount, showSymbol: false)}', darkNeutral),
-              if (invoice.totalDiscount > 0)
-                _buildSummaryPdfRow('Total Discount', '-Rs. ${CurrencyFormatter.format(invoice.totalDiscount, showSymbol: false)}', secondaryText),
-              if (invoice.gstType == GstType.intraState) ...[
-                _buildSummaryPdfRow('CGST', 'Rs. ${CurrencyFormatter.format(invoice.totalCgst, showSymbol: false)}', secondaryText),
-                _buildSummaryPdfRow('SGST', 'Rs. ${CurrencyFormatter.format(invoice.totalSgst, showSymbol: false)}', secondaryText),
+              if (invoice.isGst) ...[
+                _buildSummaryPdfRow('Taxable Amount', 'Rs. ${CurrencyFormatter.format(invoice.taxableAmount, showSymbol: false)}', darkNeutral),
+                if (invoice.totalDiscount > 0)
+                  _buildSummaryPdfRow('Total Discount', '-Rs. ${CurrencyFormatter.format(invoice.totalDiscount, showSymbol: false)}', secondaryText),
+                if (invoice.gstType == GstType.intraState) ...[
+                  _buildSummaryPdfRow('CGST', 'Rs. ${CurrencyFormatter.format(invoice.totalCgst, showSymbol: false)}', secondaryText),
+                  _buildSummaryPdfRow('SGST', 'Rs. ${CurrencyFormatter.format(invoice.totalSgst, showSymbol: false)}', secondaryText),
+                ] else ...[
+                  _buildSummaryPdfRow('IGST', 'Rs. ${CurrencyFormatter.format(invoice.totalIgst, showSymbol: false)}', secondaryText),
+                ],
               ] else ...[
-                _buildSummaryPdfRow('IGST', 'Rs. ${CurrencyFormatter.format(invoice.totalIgst, showSymbol: false)}', secondaryText),
+                _buildSummaryPdfRow('Subtotal', 'Rs. ${CurrencyFormatter.format(invoice.subtotal, showSymbol: false)}', darkNeutral),
+                if (invoice.totalDiscount > 0)
+                  _buildSummaryPdfRow('Total Discount', '-Rs. ${CurrencyFormatter.format(invoice.totalDiscount, showSymbol: false)}', secondaryText),
               ],
               if (invoice.roundOff != 0)
                 _buildSummaryPdfRow('Round Off', 'Rs. ${CurrencyFormatter.format(invoice.roundOff, showSymbol: false)}', secondaryText),
@@ -535,7 +653,9 @@ class PdfInvoiceGenerator {
             style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: alertText),
           ),
           pw.Text(
-            'Please pay on or before ${DateFormatter.format(invoice.dueDate)}',
+            invoice.dueDate != null
+                ? 'Please pay on or before ${DateFormatter.format(invoice.dueDate!)}'
+                : 'Payment balance due upon receipt',
             style: pw.TextStyle(fontSize: 8.5, color: alertText),
           ),
         ],
@@ -550,8 +670,9 @@ class PdfInvoiceGenerator {
     PdfColor darkNeutral,
     PdfColor secondaryText,
     PdfColor borderSubtle,
-    TemplateConfigModel config,
-  ) {
+    TemplateConfigModel config, {
+    Uint8List? signatureBytes,
+  }) {
     final upiUrl = 'upi://pay?pa=${business.upiId ?? ""}&pn=${Uri.encodeComponent(business.name)}&am=${invoice.balanceDue.toStringAsFixed(2)}&cu=INR';
 
     return pw.Row(
@@ -559,7 +680,7 @@ class PdfInvoiceGenerator {
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         // Bank Details & UPI QR
-        if (config.showBankDetails) ...[
+        if (config.showBankDetails || (config.showUpiQr && business.upiId != null)) ...[
           pw.Expanded(
             flex: 6,
             child: pw.Row(
@@ -577,17 +698,18 @@ class PdfInvoiceGenerator {
                   ),
                   pw.SizedBox(width: 10),
                 ],
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('BANK & UPI TRANSFER:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
-                    pw.Text('Bank: ${business.bankName ?? "N/A"}', style: const pw.TextStyle(fontSize: 8)),
-                    pw.Text('A/C No: ${business.bankAccountNumber ?? "N/A"}', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                    pw.Text('IFSC: ${business.bankIfsc ?? "N/A"} | Branch: ${business.bankBranch ?? "N/A"}', style: const pw.TextStyle(fontSize: 8)),
-                    if (business.upiId != null)
-                      pw.Text('UPI ID: ${business.upiId!}', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
-                  ],
-                ),
+                if (config.showBankDetails)
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('BANK & UPI TRANSFER:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                      pw.Text('Bank: ${business.bankName ?? "N/A"}', style: const pw.TextStyle(fontSize: 8)),
+                      pw.Text('A/C No: ${business.bankAccountNumber ?? "N/A"}', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                      pw.Text('IFSC: ${business.bankIfsc ?? "N/A"} | Branch: ${business.bankBranch ?? "N/A"}', style: const pw.TextStyle(fontSize: 8)),
+                      if (business.upiId != null)
+                        pw.Text('UPI ID: ${business.upiId!}', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -601,7 +723,21 @@ class PdfInvoiceGenerator {
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
                 pw.Text('For ${business.name}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 32),
+                if (signatureBytes != null) ...[
+                  pw.SizedBox(height: 4),
+                  pw.Container(
+                    height: 38,
+                    width: 110,
+                    alignment: pw.Alignment.bottomRight,
+                    child: pw.Image(
+                      pw.MemoryImage(signatureBytes),
+                      fit: pw.BoxFit.contain,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                ] else ...[
+                  pw.SizedBox(height: 32),
+                ],
                 pw.Container(width: 120, height: 1, color: darkNeutral),
                 pw.SizedBox(height: 2),
                 pw.Text('Authorized Signatory', style: pw.TextStyle(fontSize: 8, color: secondaryText)),

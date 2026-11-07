@@ -47,6 +47,25 @@ class SecureStorageService {
     return token != null && token.isNotEmpty;
   }
 
+  static const String _businessProfileKey = 'active_business_profile_json';
+
+  Future<void> saveBusinessProfileJson(String jsonStr, {String? userId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (userId != null && userId.isNotEmpty) {
+      await prefs.setString('business_profile_$userId', jsonStr);
+    }
+    await prefs.setString(_businessProfileKey, jsonStr);
+  }
+
+  Future<String?> getBusinessProfileJson({String? userId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (userId != null && userId.isNotEmpty) {
+      final userSpecific = prefs.getString('business_profile_$userId');
+      if (userSpecific != null && userSpecific.isNotEmpty) return userSpecific;
+    }
+    return prefs.getString(_businessProfileKey);
+  }
+
   Future<void> clearAll() async {
     await _secureStorage.deleteAll();
     final prefs = await SharedPreferences.getInstance();

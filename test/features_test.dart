@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:invoice_generator/features/settings/presentation/screens/business_profile_screen.dart';
 import 'package:invoice_generator/features/settings/presentation/screens/bank_upi_settings_screen.dart';
 import 'package:invoice_generator/features/settings/presentation/screens/app_settings_screen.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
+
   group('Settings & Profile Features Tests', () {
     testWidgets('BusinessProfileScreen renders and displays initial values', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);

@@ -6,7 +6,9 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/image_upload_card.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
+import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
 class BusinessSetupWizardScreen extends ConsumerStatefulWidget {
   const BusinessSetupWizardScreen({super.key});
@@ -24,6 +26,8 @@ class _BusinessSetupWizardScreenState extends ConsumerState<BusinessSetupWizardS
   final _cityCtrl = TextEditingController();
   String _stateCode = '27';
   String _stateName = 'Maharashtra';
+  String? _logoUrl;
+  String? _signatureUrl;
 
   // Step 2: Payment details
   final _upiCtrl = TextEditingController();
@@ -62,6 +66,8 @@ class _BusinessSetupWizardScreenState extends ConsumerState<BusinessSetupWizardS
         city: _cityCtrl.text.trim(),
         state: _stateName,
         stateCode: _stateCode,
+        logoUrl: _logoUrl,
+        signatureUrl: _signatureUrl,
         upiId: _upiCtrl.text.trim().isEmpty ? null : _upiCtrl.text.trim(),
         bankName: _bankNameCtrl.text.trim().isEmpty ? null : _bankNameCtrl.text.trim(),
         bankAccountNumber: _accountNumberCtrl.text.trim().isEmpty ? null : _accountNumberCtrl.text.trim(),
@@ -71,6 +77,7 @@ class _BusinessSetupWizardScreenState extends ConsumerState<BusinessSetupWizardS
       );
 
       await ref.read(businessNotifierProvider.notifier).updateBusiness(updated);
+      ref.invalidate(activeBusinessProvider);
 
       if (mounted) {
         context.go('/dashboard');
@@ -261,6 +268,21 @@ class _BusinessSetupWizardScreenState extends ConsumerState<BusinessSetupWizardS
                   });
                 }
               },
+            ),
+            const SizedBox(height: 18),
+            ImageUploadCard(
+              title: 'Company Logo',
+              subtitle: 'Optional branding for invoice header.',
+              currentUrl: _logoUrl,
+              onImageUpdated: (url) => setState(() => _logoUrl = url),
+            ),
+            const SizedBox(height: 12),
+            ImageUploadCard(
+              title: 'Authorized Signature *',
+              subtitle: 'Mandatory signature for all tax invoices.',
+              isSignature: true,
+              currentUrl: _signatureUrl,
+              onImageUpdated: (url) => setState(() => _signatureUrl = url),
             ),
           ],
         );

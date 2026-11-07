@@ -10,8 +10,10 @@ import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/responsive_wrapper.dart';
 import '../../../../core/widgets/shimmer_loader.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../data/models/invoice_model.dart';
 import '../../data/repositories/invoice_repository.dart';
+import 'invoice_detail_screen.dart';
 
 class SelectedFilterStatusNotifier extends Notifier<InvoiceStatus?> {
   @override
@@ -120,7 +122,7 @@ class InvoiceListScreen extends ConsumerWidget {
                           : 'No invoices match the selected status filter.',
                       icon: Icons.receipt_long_outlined,
                       actionLabel: currentFilter == null ? '+ Create Invoice' : null,
-                      onAction: currentFilter == null ? () => context.push('/invoices/create') : null,
+                      onAction: currentFilter == null ? () => context.push('/create-invoice') : null,
                     );
                   }
 
@@ -130,7 +132,7 @@ class InvoiceListScreen extends ConsumerWidget {
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final invoice = filtered[index];
-                      return _buildInvoiceCard(context, invoice);
+                      return _buildInvoiceCard(context, ref, invoice);
                     },
                   );
                 },
@@ -172,7 +174,7 @@ class InvoiceListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildInvoiceCard(BuildContext context, InvoiceModel invoice) {
+  Widget _buildInvoiceCard(BuildContext context, WidgetRef ref, InvoiceModel invoice) {
     return Card(
       child: InkWell(
         onTap: () => context.push('/invoices/${invoice.id}'),
@@ -185,13 +187,83 @@ class InvoiceListScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    invoice.invoiceNumber,
-                    style: AppTypography.headingSmall,
+                  Row(
+                    children: [
+                      Text(
+                        invoice.invoiceNumber,
+                        style: AppTypography.headingSmall,
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: invoice.isGst ? AppColors.primaryContainer : AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          invoice.isGst ? 'GST' : 'NON-GST',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: invoice.isGst ? AppColors.primary : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    CurrencyFormatter.format(invoice.grandTotal),
-                    style: AppTypography.currencyMedium,
+                  Row(
+                    children: [
+                      Text(
+                        CurrencyFormatter.format(invoice.grandTotal),
+                        style: AppTypography.currencyMedium,
+                      ),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert_rounded, size: 20, color: AppColors.textMuted),
+                        padding: EdgeInsets.zero,
+                        onSelected: (action) {
+                          if (action == 'view') {
+                            context.push('/invoices/${invoice.id}');
+                          } else if (action == 'preview') {
+                            context.push('/invoices/${invoice.id}/preview');
+                          } else if (action == 'delete') {
+                            _confirmDeleteInvoice(context, ref, invoice);
+                          }
+                        },
+                        itemBuilder: (ctx) => [
+                          const PopupMenuItem(
+                            value: 'view',
+                            child: Row(
+                              children: [
+                                Icon(Icons.visibility_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Text('View Details'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'preview',
+                            child: Row(
+                              children: [
+                                Icon(Icons.picture_as_pdf_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Text('PDF & Share'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+                                SizedBox(width: 8),
+                                Text('Delete', style: TextStyle(color: AppColors.error)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -205,7 +277,7 @@ class InvoiceListScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Due: ${DateFormatter.format(invoice.dueDate)}',
+                    invoice.dueDate != null ? 'Due: ${DateFormatter.format(invoice.dueDate)}' : 'Invoice: ${DateFormatter.format(invoice.invoiceDate)}',
                     style: AppTypography.bodySmall,
                   ),
                   StatusBadge(status: _mapStatus(invoice.status)),
@@ -216,6 +288,66 @@ class InvoiceListScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDeleteInvoice(BuildContext context, WidgetRef ref, InvoiceModel invoice) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 24),
+            SizedBox(width: 8),
+            Text('Delete Invoice?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete invoice ${invoice.invoiceNumber}?\n\nThis will remove all associated line items and payment records. This action cannot be undone.',
+          style: AppTypography.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete Permanently'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await ref.read(invoiceRepositoryProvider).deleteInvoice(invoice.id);
+        ref.invalidate(invoiceListProvider);
+        ref.invalidate(dashboardStatsProvider);
+        ref.invalidate(invoiceDetailProvider(invoice.id));
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invoice ${invoice.invoiceNumber} deleted successfully.'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete invoice: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
   }
 
   InvoiceStatusType _mapStatus(InvoiceStatus status) {
